@@ -105,7 +105,7 @@ struct BoxView: View {
     }
 }
 
-/// Velocità istantanea con barra d'uso della banda (stile CodexBar).
+/// Velocità istantanea con barra d'uso della banda.
 private struct RateRow: View {
     let symbol: String
     let tint: Color

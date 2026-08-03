@@ -88,11 +88,6 @@ the iliadbox exposes on the LAN:
 - [ ] English localization
 - [ ] App icon, screenshots, releases with Sparkle
 
-## Credits
-
-The panel design is inspired by [CodexBar](https://github.com/steipete/CodexBar)
-by Peter Steinberger — a masterclass in menu bar UX. No code was copied.
-
 ## License
 
 [MIT](LICENSE)

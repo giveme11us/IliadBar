@@ -15,8 +15,8 @@ struct IliadBarApp: App {
     }
 }
 
-/// Icona in menu bar + percentuale aggregata quando ci sono download attivi
-/// (stile CodexBar: il dato vive accanto all'icona, il dettaglio nel pannello).
+/// Icona in menu bar + percentuale aggregata quando ci sono download attivi:
+/// il dato vive accanto all'icona, il dettaglio nel pannello.
 struct MenuBarLabel: View {
     @ObservedObject var model: AppModel
 

@@ -47,7 +47,7 @@ final class AppModel: ObservableObject {
         tasks.filter { isActive($0) }
     }
 
-    /// Percentuale aggregata mostrata accanto all'icona in menu bar (stile CodexBar):
+    /// Percentuale aggregata mostrata accanto all'icona in menu bar:
     /// visibile solo quando c'è almeno un download attivo.
     var menuBarPercent: String? {
         let downloading = activeTasks.filter { ($0.size ?? 0) > 0 }

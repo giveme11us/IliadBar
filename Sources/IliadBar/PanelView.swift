@@ -14,9 +14,9 @@ enum PanelTab: String, CaseIterable, Identifiable {
     }
 }
 
-/// Pannello principale, ispirato alle menu card di CodexBar:
-/// sezioni divise da Divider, titoli .headline, meta .footnote secondary,
-/// righe-azione con icona SF in colonna fissa, barre capsule sottili.
+/// Pannello principale: sezioni divise da Divider, titoli .headline,
+/// meta .footnote secondary, righe-azione con icona SF in colonna fissa,
+/// barre capsule sottili.
 struct PanelView: View {
     @ObservedObject var model: AppModel
     @State private var tab: PanelTab = .download
@@ -186,7 +186,7 @@ struct PanelView: View {
     }
 }
 
-// MARK: - Riga azione (icona in colonna fissa da 18pt, stile CodexBar)
+// MARK: - Riga azione (icona in colonna fissa da 18pt)
 
 struct ActionRow: View {
     let icon: String
@@ -315,8 +315,8 @@ private struct TaskRow: View {
     }
 }
 
-// MARK: - Barra di progresso (Canvas singolo, come UsageProgressBar di CodexBar:
-// niente modificatori di compositing SwiftUI, che su macOS 26 rompono il rendering)
+// MARK: - Barra di progresso (Canvas singolo: niente modificatori di compositing
+// SwiftUI, che su macOS 26 possono rompere il rendering delle status item)
 
 struct ProgressBarView: View {
     let percent: Double
