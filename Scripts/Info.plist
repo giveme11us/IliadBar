@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>MagnetBox</string>
+	<key>CFBundleDisplayName</key>
+	<string>MagnetBox</string>
+	<key>CFBundleIdentifier</key>
+	<string>it.ivansposato.magnetbox</string>
+	<key>CFBundleVersion</key>
+	<string>0.1.0</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleExecutable</key>
+	<string>MagnetBox</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<!-- Solo menu bar: niente icona nel Dock -->
+	<key>LSUIElement</key>
+	<true/>
+	<!-- Handler dello schema magnet: -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>Magnet Link</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>magnet</string>
+			</array>
+		</dict>
+	</array>
+	<!-- La box si parla in HTTP semplice su 192.168.1.254 (il cert HTTPS vale
+	     solo per il dominio .ibxos.it, non per l'IP LAN) -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>MagnetBox comunica con la iliadbox sulla rete locale per avviare i download.</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+</dict>
+</plist>
