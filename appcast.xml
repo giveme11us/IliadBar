@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>IliadBar Updates</title>
+    <link>https://github.com/giveme11us/IliadBar/releases/latest/download/appcast.xml</link>
+    <description>Stable IliadBar updates.</description>
+    <!-- Generated release items are inserted by Sparkle generate_appcast. -->
+  </channel>
+</rss>

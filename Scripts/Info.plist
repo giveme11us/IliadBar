@@ -6,14 +6,22 @@
 	<string>IliadBar</string>
 	<key>CFBundleDisplayName</key>
 	<string>IliadBar</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>it</string>
+	<key>CFBundleLocalizations</key>
+	<array><string>it</string><string>en</string></array>
 	<key>CFBundleIdentifier</key>
 	<string>it.ivansposato.iliadbar</string>
 	<key>CFBundleVersion</key>
-	<string>0.2.0</string>
+	<string>__ILIADBAR_VERSION__</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.2.0</string>
+	<string>__ILIADBAR_VERSION__</string>
 	<key>CFBundleExecutable</key>
 	<string>IliadBar</string>
+	<key>IliadBarAppGroup</key>
+	<string>__ILIADBAR_APP_GROUP__</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>LSMinimumSystemVersion</key>
@@ -33,16 +41,35 @@
 			</array>
 		</dict>
 	</array>
-	<!-- La box si parla in HTTP semplice su 192.168.1.254 (il cert HTTPS vale
-	     solo per il dominio .ibxos.it, non per l'IP LAN) -->
+	<!-- Gli endpoint configurabili includono HTTP LAN e HTTPS con CA privata.
+	     L'eccezione è limitata ai domini iliadbox; BoxTrustDelegate continua a
+	     imporre hostname, validità della catena e pin della CA. -->
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>ibxos.it</key>
+			<dict>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+		</dict>
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>IliadBar comunica con la iliadbox sulla rete locale.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_fbx-api._tcp</string>
+	</array>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/giveme11us/IliadBar/releases/latest/download/appcast.xml</string>
 </dict>
 </plist>

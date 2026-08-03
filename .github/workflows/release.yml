@@ -1,0 +1,83 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify tag matches source version
+        run: |
+          version=$(sed -n 's/.*static let version = "\([^"]*\)".*/\1/p' Sources/IliadboxKit/BuildInfo.swift)
+          test "${GITHUB_REF_NAME}" = "v${version}"
+
+      - name: Resolve packages with retry
+        run: |
+          for attempt in 1 2 3; do
+            swift package resolve && exit 0
+            echo "Resolve attempt $attempt failed"
+            sleep $((attempt * 5))
+          done
+          exit 1
+
+      - name: Import Developer ID certificate
+        env:
+          P12_BASE64: ${{ secrets.DEVELOPER_ID_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          certificate="$RUNNER_TEMP/developer-id.p12"
+          keychain="$RUNNER_TEMP/iliadbar.keychain-db"
+          printf '%s' "$P12_BASE64" | base64 -D > "$certificate"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security import "$certificate" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$keychain"
+          security list-keychains -d user -s "$keychain" login.keychain-db
+
+      - name: Configure notarization
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: xcrun notarytool store-credentials iliadbar-ci --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD"
+
+      - name: Build, sign and notarize
+        env:
+          CODE_SIGN_IDENTITY: ${{ secrets.CODE_SIGN_IDENTITY }}
+          DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
+          SPARKLE_PUBLIC_KEY: ${{ secrets.SPARKLE_PUBLIC_KEY }}
+          NOTARY_PROFILE: iliadbar-ci
+        run: ./Scripts/release.sh
+
+      - name: Generate signed appcast and Cask
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          ./Scripts/generate-appcast.sh
+          ./Scripts/update-cask.sh
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          cp "build/IliadBar-$version.zip" build/IliadBar.zip
+          gh release create "$GITHUB_REF_NAME" \
+            "build/IliadBar-$version.zip" \
+            build/IliadBar.zip \
+            "build/IliadBar-$version.zip.sha256" \
+            appcast.xml \
+            Casks/iliadbar.rb \
+            --generate-notes \
+            --verify-tag

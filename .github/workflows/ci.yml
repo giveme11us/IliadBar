@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [development]
+  pull_request:
+    branches: [development]
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-package:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve packages with retry
+        run: |
+          for attempt in 1 2 3; do
+            swift package resolve && exit 0
+            echo "Resolve attempt $attempt failed"
+            sleep $((attempt * 5))
+          done
+          exit 1
+
+      - name: Verify formatting
+        run: |
+          swift format --in-place --recursive Sources Tests
+          git diff --exit-code -- Sources Tests
+
+      - name: Test
+        run: swift test
+
+      - name: Audit localization
+        run: ./Scripts/audit-localization.sh
+
+      - name: Validate release metadata
+        run: |
+          zsh -n Scripts/*.sh
+          ruby -c Casks/iliadbar.rb
+
+      - name: Build application bundle
+        run: ./Scripts/make-app.sh
+
+      - name: Verify nested bundle and signatures
+        run: |
+          test -x build/IliadBar.app/Contents/MacOS/IliadBar
+          test -x build/IliadBar.app/Contents/MacOS/ibx
+          test -x build/IliadBar.app/Contents/PlugIns/IliadBarWidget.appex/Contents/MacOS/IliadBarWidget
+          test -d build/IliadBar.app/Contents/Frameworks/Sparkle.framework
+          otool -l build/IliadBar.app/Contents/MacOS/IliadBar | grep -q '@executable_path/../Frameworks'
+          app_group=$(/usr/libexec/PlistBuddy -c 'Print :IliadBarAppGroup' build/IliadBar.app/Contents/Info.plist)
+          widget_group=$(/usr/libexec/PlistBuddy -c 'Print :IliadBarAppGroup' build/IliadBar.app/Contents/PlugIns/IliadBarWidget.appex/Contents/Info.plist)
+          test "$app_group" = "$widget_group"
+          test "$app_group" = 'group.it.ivansposato.iliadbar'
+          ! grep -R '__ILIADBAR_' build/IliadBar.app
+          codesign --verify --deep --strict --verbose=2 build/IliadBar.app
+
+      - name: Runtime lifecycle smoke tests
+        run: ./Scripts/runtime-smoke.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: IliadBar-adhoc
+          path: build/IliadBar.app
