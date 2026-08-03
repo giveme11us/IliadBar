@@ -6,8 +6,26 @@ struct MagnetBoxApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
 
     var body: some Scene {
-        MenuBarExtra("MagnetBox", systemImage: "arrow.down.circle") {
-            MenuView(model: delegate.model)
+        MenuBarExtra {
+            PanelView(model: delegate.model)
+        } label: {
+            MenuBarLabel(model: delegate.model)
+        }
+        .menuBarExtraStyle(.window)
+    }
+}
+
+/// Icona in menu bar + percentuale aggregata quando ci sono download attivi
+/// (stile CodexBar: il dato vive accanto all'icona, il dettaglio nel pannello).
+struct MenuBarLabel: View {
+    @ObservedObject var model: AppModel
+
+    var body: some View {
+        if let percent = model.menuBarPercent {
+            Text("↓ \(percent)")
+                .monospacedDigit()
+        } else {
+            Image(systemName: "arrow.down.circle")
         }
     }
 }
@@ -22,22 +40,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for url in urls where url.scheme == "magnet" {
             Task { await model.add(magnet: url.absoluteString) }
         }
-    }
-}
-
-struct MenuView: View {
-    @ObservedObject var model: AppModel
-
-    var body: some View {
-        Text(model.statusLine)
-        Divider()
-        Button("Aggiungi magnet dagli appunti") {
-            Task { await model.addFromPasteboard() }
-        }
-        Button("Usa MagnetBox per i link magnet") {
-            model.registerAsMagnetHandler()
-        }
-        Divider()
-        Button("Esci") { NSApplication.shared.terminate(nil) }
     }
 }

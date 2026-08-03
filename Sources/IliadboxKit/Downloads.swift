@@ -60,4 +60,19 @@ public extension IliadboxClient {
         let path = eraseFiles ? "downloads/\(id)/erase" : "downloads/\(id)"
         let _: FbxEmpty = try await authedCall(path, method: "DELETE")
     }
+
+    @discardableResult
+    func pauseDownload(id: Int) async throws -> DownloadTask {
+        try await updateDownload(id: id, status: "stopped")
+    }
+
+    @discardableResult
+    func resumeDownload(id: Int) async throws -> DownloadTask {
+        try await updateDownload(id: id, status: "downloading")
+    }
+
+    private func updateDownload(id: Int, status: String) async throws -> DownloadTask {
+        struct Body: Encodable { let status: String }
+        return try await authedCall("downloads/\(id)", method: "PUT", jsonBody: Body(status: status))
+    }
 }

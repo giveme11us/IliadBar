@@ -134,14 +134,19 @@ public actor IliadboxClient {
     // MARK: Richieste
 
     /// Chiamata autenticata, con retry trasparente se la sessione è scaduta.
-    func authedCall<T: Decodable>(_ path: String, method: String = "GET", formBody: [String: String]? = nil) async throws -> T {
+    func authedCall<T: Decodable>(
+        _ path: String,
+        method: String = "GET",
+        jsonBody: (any Encodable)? = nil,
+        formBody: [String: String]? = nil
+    ) async throws -> T {
         if sessionToken == nil { try await openSession() }
         do {
-            return try await call(path, method: method, formBody: formBody, authenticated: true)
+            return try await call(path, method: method, jsonBody: jsonBody, formBody: formBody, authenticated: true)
         } catch FbxError.api(let code, _) where code == "auth_required" || code == "invalid_token" {
             sessionToken = nil
             try await openSession()
-            return try await call(path, method: method, formBody: formBody, authenticated: true)
+            return try await call(path, method: method, jsonBody: jsonBody, formBody: formBody, authenticated: true)
         }
     }
 

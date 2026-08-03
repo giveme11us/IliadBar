@@ -1,35 +1,98 @@
 import AppKit
+import ServiceManagement
 import UserNotifications
 import IliadboxKit
 
 @MainActor
 final class AppModel: ObservableObject {
-    @Published var statusLine: String
+    @Published var tasks: [DownloadTask] = []
+    @Published var paired: Bool
+    @Published var pairingInProgress = false
+    /// Feedback transiente (ultimo esito / errore), mostrato sotto l'header.
+    @Published var statusLine: String?
+    @Published var launchAtLogin: Bool
 
     private let client: IliadboxClient
-    private let paired: Bool
+    private var pollTask: Task<Void, Never>?
+
+    static let version = "0.1.0"
 
     init() {
         let config = ConfigStore.load()
         client = IliadboxClient(config: config)
         paired = config.appToken != nil
-        statusLine = paired ? "Pronto — iliadbox associata" : "Non associato: esegui `ibx pair` nel terminale"
-        if paired { requestNotificationPermission() }
+        launchAtLogin = Bundle.main.bundleIdentifier != nil && SMAppService.mainApp.status == .enabled
+        if paired {
+            requestNotificationPermission()
+            startPolling()
+        }
     }
+
+    // MARK: Stato derivato
+
+    var activeTasks: [DownloadTask] {
+        tasks.filter { ["downloading", "starting", "checking", "retry", "queued"].contains($0.status ?? "") }
+    }
+
+    /// Percentuale aggregata mostrata accanto all'icona in menu bar (stile CodexBar):
+    /// visibile solo quando c'è almeno un download attivo.
+    var menuBarPercent: String? {
+        let downloading = activeTasks.filter { ($0.size ?? 0) > 0 }
+        guard !downloading.isEmpty else { return nil }
+        let total = downloading.reduce(Int64(0)) { $0 + ($1.size ?? 0) }
+        let received = downloading.reduce(Int64(0)) { $0 + ($1.rxBytes ?? 0) }
+        guard total > 0 else { return nil }
+        return "\(Int(Double(received) / Double(total) * 100))%"
+    }
+
+    // MARK: Polling
+
+    /// Cadenza adattiva: serrata coi download attivi, rilassata a riposo.
+    func startPolling() {
+        pollTask?.cancel()
+        pollTask = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.refresh()
+                let seconds: UInt64 = (self?.activeTasks.isEmpty == false) ? 3 : 20
+                try? await Task.sleep(nanoseconds: seconds * 1_000_000_000)
+            }
+        }
+    }
+
+    func refresh() async {
+        guard paired else { return }
+        do {
+            let list = try await client.listDownloads()
+            // Attivi in testa, poi i più recenti.
+            tasks = list.sorted { lhs, rhs in
+                let la = isActive(lhs), ra = isActive(rhs)
+                if la != ra { return la }
+                return lhs.id > rhs.id
+            }
+        } catch {
+            statusLine = "iliadbox non raggiungibile"
+        }
+    }
+
+    private func isActive(_ task: DownloadTask) -> Bool {
+        ["downloading", "starting", "checking", "retry", "queued"].contains(task.status ?? "")
+    }
+
+    // MARK: Azioni download
 
     func add(magnet: String) async {
         guard paired else {
-            statusLine = "Non associato: esegui `ibx pair` nel terminale"
-            notify(title: "MagnetBox non associata", body: "Esegui `ibx pair` nel terminale, poi riprova.")
+            statusLine = "Prima associa MagnetBox alla iliadbox"
             return
         }
         do {
             let id = try await client.addDownload(url: magnet)
             let name = (try? await client.download(id: id))?.name ?? displayName(forMagnet: magnet)
-            statusLine = "In download: \(name)"
+            statusLine = nil
             notify(title: "Download avviato sulla iliadbox", body: name)
+            await refresh()
         } catch {
-            statusLine = "Errore: \(error.localizedDescription)"
+            statusLine = error.localizedDescription
             notify(title: "Errore download", body: error.localizedDescription)
         }
     }
@@ -45,8 +108,53 @@ final class AppModel: ObservableObject {
         await add(magnet: text)
     }
 
-    /// Chiede a macOS di rendere MagnetBox l'app predefinita per magnet:
-    /// (il sistema mostra una conferma all'utente).
+    func togglePause(_ task: DownloadTask) async {
+        do {
+            if task.status == "stopped" {
+                try await client.resumeDownload(id: task.id)
+            } else {
+                try await client.pauseDownload(id: task.id)
+            }
+            await refresh()
+        } catch {
+            statusLine = error.localizedDescription
+        }
+    }
+
+    /// Rimuove solo il task: i file scaricati restano sulla box.
+    func remove(_ task: DownloadTask) async {
+        do {
+            try await client.deleteDownload(id: task.id, eraseFiles: false)
+            await refresh()
+        } catch {
+            statusLine = error.localizedDescription
+        }
+    }
+
+    // MARK: Pairing (dal pannello)
+
+    func pair() async {
+        pairingInProgress = true
+        statusLine = "Conferma la richiesta sulla iliadbox…"
+        defer { pairingInProgress = false }
+        do {
+            let deviceName = Host.current().localizedName ?? "Mac"
+            let auth = try await client.requestAuthorization(deviceName: deviceName)
+            try await client.waitForApproval(trackId: auth.trackId)
+            var config = ConfigStore.load()
+            config.appToken = auth.appToken
+            try ConfigStore.save(config)
+            paired = true
+            statusLine = nil
+            requestNotificationPermission()
+            startPolling()
+        } catch {
+            statusLine = error.localizedDescription
+        }
+    }
+
+    // MARK: Sistema
+
     func registerAsMagnetHandler() {
         NSWorkspace.shared.setDefaultApplication(
             at: Bundle.main.bundleURL,
@@ -60,10 +168,23 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func setLaunchAtLogin(_ enabled: Bool) {
+        guard Bundle.main.bundleIdentifier != nil else { return }
+        do {
+            if enabled {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+            launchAtLogin = enabled
+        } catch {
+            launchAtLogin = SMAppService.mainApp.status == .enabled
+            statusLine = "Avvio al login: \(error.localizedDescription)"
+        }
+    }
+
     // MARK: Helpers
 
-    /// Estrae il display name (dn=) dal magnet per un feedback leggibile
-    /// senza dover attendere i metadati dalla box.
     private func displayName(forMagnet magnet: String) -> String {
         guard let components = URLComponents(string: magnet),
               let dn = components.queryItems?.first(where: { $0.name == "dn" })?.value
