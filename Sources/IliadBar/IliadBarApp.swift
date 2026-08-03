@@ -2,7 +2,7 @@ import SwiftUI
 import IliadboxKit
 
 @main
-struct MagnetBoxApp: App {
+struct IliadBarApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
 
     var body: some Scene {
@@ -25,7 +25,7 @@ struct MenuBarLabel: View {
             Text("↓ \(percent)")
                 .monospacedDigit()
         } else {
-            Image(systemName: "arrow.down.circle")
+            Image(systemName: "antenna.radiowaves.left.and.right")
         }
     }
 }
@@ -34,7 +34,7 @@ struct MenuBarLabel: View {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let model = AppModel()
 
-    /// Punto d'ingresso dei link magnet: quando MagnetBox è l'handler dello
+    /// Punto d'ingresso dei link magnet: quando IliadBar è l'handler dello
     /// schema, LaunchServices consegna qui gli URL (anche ad app non avviata).
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls where url.scheme == "magnet" {

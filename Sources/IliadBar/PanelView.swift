@@ -1,11 +1,25 @@
 import SwiftUI
 import IliadboxKit
 
+enum PanelTab: String, CaseIterable, Identifiable {
+    case download, file, box
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .download: "Download"
+        case .file: "File"
+        case .box: "Box"
+        }
+    }
+}
+
 /// Pannello principale, ispirato alle menu card di CodexBar:
 /// sezioni divise da Divider, titoli .headline, meta .footnote secondary,
 /// righe-azione con icona SF in colonna fissa, barre capsule sottili.
 struct PanelView: View {
     @ObservedObject var model: AppModel
+    @State private var tab: PanelTab = .download
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -16,14 +30,18 @@ struct PanelView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
-            Divider()
             if model.paired {
-                downloadsSection
+                tabBar
+                Divider()
+                switch tab {
+                case .download: downloadTab
+                case .file: FilesView(model: model)
+                case .box: BoxView(model: model)
+                }
             } else {
+                Divider()
                 pairingSection
             }
-            Divider()
-            actionsSection
             Divider()
             footer
         }
@@ -37,7 +55,7 @@ struct PanelView: View {
 
     private var header: some View {
         HStack {
-            Text("MagnetBox").font(.headline)
+            Text("IliadBar").font(.headline)
             Spacer()
             HStack(spacing: 5) {
                 Circle()
@@ -50,10 +68,33 @@ struct PanelView: View {
         }
     }
 
-    // MARK: Download
+    // MARK: Tab bar
+
+    private var tabBar: some View {
+        HStack(spacing: 4) {
+            ForEach(PanelTab.allCases) { candidate in
+                Button {
+                    tab = candidate
+                } label: {
+                    Text(candidate.title)
+                        .font(.footnote.weight(tab == candidate ? .semibold : .regular))
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 3)
+                        .background(
+                            RoundedRectangle(cornerRadius: 5)
+                                .fill(tab == candidate ? Color.primary.opacity(0.1) : .clear)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer()
+        }
+    }
+
+    // MARK: Tab Download
 
     @ViewBuilder
-    private var downloadsSection: some View {
+    private var downloadTab: some View {
         HStack {
             Text("DOWNLOAD")
                 .font(.caption2.weight(.semibold))
@@ -93,11 +134,19 @@ struct PanelView: View {
                     .foregroundStyle(.tertiary)
             }
         }
+
+        Divider()
+        ActionRow(icon: "doc.on.clipboard", title: "Aggiungi magnet dagli appunti") {
+            Task { await model.addFromPasteboard() }
+        }
+        ActionRow(icon: "link", title: "Usa IliadBar per i link magnet") {
+            model.registerAsMagnetHandler()
+        }
     }
 
     private var pairingSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("MagnetBox non è ancora associata alla tua iliadbox.")
+            Text("IliadBar non è ancora associata alla tua iliadbox.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Button {
@@ -114,19 +163,6 @@ struct PanelView: View {
         }
     }
 
-    // MARK: Azioni
-
-    private var actionsSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            ActionRow(icon: "doc.on.clipboard", title: "Aggiungi magnet dagli appunti") {
-                Task { await model.addFromPasteboard() }
-            }
-            ActionRow(icon: "link", title: "Usa MagnetBox per i link magnet") {
-                model.registerAsMagnetHandler()
-            }
-        }
-    }
-
     // MARK: Footer
 
     private var footer: some View {
@@ -138,7 +174,7 @@ struct PanelView: View {
             .toggleStyle(.checkbox)
             .font(.footnote)
             Spacer()
-            Text("v\(AppModel.version)")
+            Text("v\(IliadboxClient.appVersion)")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
             Button("Esci") { NSApplication.shared.terminate(nil) }
@@ -152,7 +188,7 @@ struct PanelView: View {
 
 // MARK: - Riga azione (icona in colonna fissa da 18pt, stile CodexBar)
 
-private struct ActionRow: View {
+struct ActionRow: View {
     let icon: String
     let title: String
     let action: () -> Void
@@ -317,9 +353,29 @@ enum Format {
         return formatter.string(fromByteCount: value)
     }
 
+    /// Banda in bit/s → "5 Gbit/s", "700 Mbit/s".
+    static func bits(_ value: Int64) -> String {
+        let mbit = Double(value) / 1_000_000
+        if mbit >= 1000 {
+            let gbit = mbit / 1000
+            return gbit == gbit.rounded() ? "\(Int(gbit)) Gbit/s" : String(format: "%.1f Gbit/s", gbit)
+        }
+        return "\(Int(mbit)) Mbit/s"
+    }
+
     static func duration(_ seconds: Int64) -> String {
         if seconds < 60 { return "\(seconds)s" }
         if seconds < 3600 { return "\(seconds / 60) min" }
         return String(format: "%dh %02dm", seconds / 3600, (seconds % 3600) / 60)
+    }
+
+    /// Uptime compatto: "14g 6h", "3h 12m".
+    static func uptime(_ seconds: Int64) -> String {
+        let days = seconds / 86400
+        let hours = (seconds % 86400) / 3600
+        let minutes = (seconds % 3600) / 60
+        if days > 0 { return "\(days)g \(hours)h" }
+        if hours > 0 { return "\(hours)h \(minutes)m" }
+        return "\(minutes)m"
     }
 }

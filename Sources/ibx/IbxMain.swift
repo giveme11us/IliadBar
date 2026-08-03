@@ -19,6 +19,10 @@ struct IbxMain {
             case "rm":
                 guard args.count >= 2, let id = Int(args[1]) else { fail("uso: ibx rm <id> [--erase]") }
                 try await remove(id: id, erase: args.contains("--erase"))
+            case "box":
+                try await box()
+            case "ls":
+                try await ls(path: args.count >= 2 ? args[1] : nil)
             default:
                 usage()
             }
@@ -29,7 +33,7 @@ struct IbxMain {
 
     static func usage() {
         print("""
-        ibx — client CLI per il download manager della iliadbox
+        ibx — CLI per la iliadbox (IliadBar)
 
         USO: ibx <comando>
           pair              Associa questo Mac alla iliadbox (conferma fisica sulla box)
@@ -37,8 +41,10 @@ struct IbxMain {
           add <magnet|url>  Aggiunge un download sulla box
           list              Elenca i task di download
           rm <id> [--erase] Rimuove un task (--erase cancella anche i file)
+          box               Info e stats della box (connessione, sistema)
+          ls [path]         Elenca la cartella download (o un path della box)
 
-        Config: ~/Library/Application Support/MagnetBox/config.json
+        Config: ~/Library/Application Support/IliadBar/config.json
         """)
     }
 
@@ -110,6 +116,52 @@ struct IbxMain {
         print("✓ Task \(id) rimosso\(erase ? " (file inclusi)" : "")")
     }
 
+    static func box() async throws {
+        let client = IliadboxClient(config: ConfigStore.load())
+        let connection = try await client.connectionStatus()
+        let system = try await client.systemInfo()
+
+        let state = connection.isUp ? "connessa" : (connection.state ?? "-")
+        print("Connessione: \(state) [\(connection.media?.uppercased() ?? "-")]  IPv4 \(connection.ipv4 ?? "-")")
+        let down = (connection.rateDown ?? 0) / 1024
+        let up = (connection.rateUp ?? 0) / 1024
+        print("Velocità:    ↓ \(down) KiB/s  ↑ \(up) KiB/s")
+        if let bandwidthDown = connection.bandwidthDown, let bandwidthUp = connection.bandwidthUp {
+            print("Banda max:   ↓ \(bandwidthDown / 1_000_000) Mbit/s  ↑ \(bandwidthUp / 1_000_000) Mbit/s")
+        }
+        print("Modello:     \(system.modelName ?? "-")")
+        print("Firmware:    \(system.firmwareVersion ?? "-")")
+        if let uptime = system.uptimeVal {
+            print("Uptime:      \(uptime / 86400)g \((uptime % 86400) / 3600)h")
+        }
+        if let temperature = system.maxTemperature {
+            print("Temperatura: \(temperature) °C")
+        }
+    }
+
+    static func ls(path: String?) async throws {
+        let client = IliadboxClient(config: ConfigStore.load())
+        let pathB64: String
+        if let path {
+            pathB64 = Data(path.utf8).base64EncodedString()
+        } else {
+            pathB64 = try await client.downloadsDirectory()
+            if let decoded = Data(base64Encoded: pathB64).flatMap({ String(data: $0, encoding: .utf8) }) {
+                print("(cartella download della box: \(decoded))")
+            }
+        }
+        let entries = try await client.listFolder(pathB64: pathB64)
+        guard !entries.isEmpty else {
+            print("(cartella vuota)")
+            return
+        }
+        for entry in entries {
+            let marker = entry.isDirectory ? "d" : "-"
+            let size = entry.isDirectory ? "" : " \((entry.size ?? 0) / 1024) KiB"
+            print("\(marker) \(entry.name)\(size)")
+        }
+    }
+
     static func printPermissions(_ permissions: [String: Bool]) {
         guard !permissions.isEmpty else { return }
         print("Permessi:")
@@ -118,7 +170,7 @@ struct IbxMain {
         }
         if permissions["downloader"] != true {
             print("⚠️  Permesso 'downloader' mancante: abilitalo da iliadbox OS →")
-            print("   Impostazioni → Gestione accessi → Applicazioni → MagnetBox")
+            print("   Impostazioni → Gestione accessi → Applicazioni → IliadBar")
         }
     }
 }

@@ -56,14 +56,17 @@ public struct SessionResult: Decodable, Sendable {
 /// Auth: app_token permanente (pairing con conferma fisica sulla box) +
 /// session_token per sessione, ottenuto firmando il challenge con HMAC-SHA1.
 public actor IliadboxClient {
+    /// NON cambiare: l'app_token rilasciato dalla box al pairing è legato a questo
+    /// app_id — cambiarlo invalida l'associazione (nuova conferma fisica sulla box).
+    /// Il valore storico risale al pairing fatto quando l'app si chiamava MagnetBox.
     public static let appId = "it.ivansposato.magnetbox"
-    public static let appName = "MagnetBox"
-    public static let appVersion = "0.1.0"
+    public static let appName = "IliadBar"
+    public static let appVersion = "0.2.0"
 
-    private let baseURL: URL
+    let baseURL: URL
     private var appToken: String?
-    private var sessionToken: String?
-    private let urlSession: URLSession
+    var sessionToken: String?
+    let urlSession: URLSession
 
     public private(set) var permissions: [String: Bool] = [:]
 

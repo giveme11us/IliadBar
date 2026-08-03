@@ -1,7 +1,7 @@
 import Foundation
 
-/// Config condivisa tra CLI (`ibx`) e app (MagnetBox):
-/// ~/Library/Application Support/MagnetBox/config.json (0600 — contiene l'app_token).
+/// Config condivisa tra CLI (`ibx`) e app (IliadBar):
+/// ~/Library/Application Support/IliadBar/config.json (0600 — contiene l'app_token).
 public struct IbxConfig: Codable, Sendable {
     public var baseURL: String
     public var appToken: String?
@@ -15,7 +15,7 @@ public struct IbxConfig: Codable, Sendable {
 public enum ConfigStore {
     public static var directory: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("MagnetBox", isDirectory: true)
+            .appendingPathComponent("IliadBar", isDirectory: true)
     }
 
     public static var fileURL: URL {

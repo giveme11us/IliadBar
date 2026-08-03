@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleName</key>
-	<string>MagnetBox</string>
+	<string>IliadBar</string>
 	<key>CFBundleDisplayName</key>
-	<string>MagnetBox</string>
+	<string>IliadBar</string>
 	<key>CFBundleIdentifier</key>
-	<string>it.ivansposato.magnetbox</string>
+	<string>it.ivansposato.iliadbar</string>
 	<key>CFBundleVersion</key>
-	<string>0.1.0</string>
+	<string>0.2.0</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.1.0</string>
+	<string>0.2.0</string>
 	<key>CFBundleExecutable</key>
-	<string>MagnetBox</string>
+	<string>IliadBar</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>LSMinimumSystemVersion</key>
@@ -41,7 +41,7 @@
 		<true/>
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>MagnetBox comunica con la iliadbox sulla rete locale per avviare i download.</string>
+	<string>IliadBar comunica con la iliadbox sulla rete locale.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 </dict>

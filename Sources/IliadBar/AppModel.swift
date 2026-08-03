@@ -3,9 +3,24 @@ import ServiceManagement
 import UserNotifications
 import IliadboxKit
 
+struct Crumb: Identifiable, Equatable {
+    let name: String
+    let pathB64: String
+    var id: String { pathB64 }
+}
+
 @MainActor
 final class AppModel: ObservableObject {
+    // Download
     @Published var tasks: [DownloadTask] = []
+    // Box (tab stats)
+    @Published var connection: ConnectionStatus?
+    @Published var system: SystemInfo?
+    // File (tab browser)
+    @Published var entries: [FsEntry] = []
+    @Published var crumbs: [Crumb] = []
+    @Published var filesLoading = false
+    // Stato generale
     @Published var paired: Bool
     @Published var pairingInProgress = false
     /// Feedback transiente (ultimo esito / errore), mostrato sotto l'header.
@@ -14,8 +29,6 @@ final class AppModel: ObservableObject {
 
     private let client: IliadboxClient
     private var pollTask: Task<Void, Never>?
-
-    static let version = "0.1.0"
 
     init() {
         let config = ConfigStore.load()
@@ -31,7 +44,7 @@ final class AppModel: ObservableObject {
     // MARK: Stato derivato
 
     var activeTasks: [DownloadTask] {
-        tasks.filter { ["downloading", "starting", "checking", "retry", "queued"].contains($0.status ?? "") }
+        tasks.filter { isActive($0) }
     }
 
     /// Percentuale aggregata mostrata accanto all'icona in menu bar (stile CodexBar):
@@ -45,7 +58,7 @@ final class AppModel: ObservableObject {
         return "\(Int(Double(received) / Double(total) * 100))%"
     }
 
-    // MARK: Polling
+    // MARK: Polling download
 
     /// Cadenza adattiva: serrata coi download attivi, rilassata a riposo.
     func startPolling() {
@@ -82,7 +95,7 @@ final class AppModel: ObservableObject {
 
     func add(magnet: String) async {
         guard paired else {
-            statusLine = "Prima associa MagnetBox alla iliadbox"
+            statusLine = "Prima associa IliadBar alla iliadbox"
             return
         }
         do {
@@ -131,6 +144,98 @@ final class AppModel: ObservableObject {
         }
     }
 
+    // MARK: Box stats
+
+    func refreshBoxStats() async {
+        guard paired else { return }
+        async let connectionCall = try? client.connectionStatus()
+        async let systemCall = try? client.systemInfo()
+        let (conn, sys) = await (connectionCall, systemCall)
+        if let conn { connection = conn }
+        if let sys { system = sys }
+        if conn == nil, sys == nil { statusLine = "iliadbox non raggiungibile" }
+    }
+
+    // MARK: File browser
+
+    /// Primo ingresso nella tab File: parte dalla cartella download della box.
+    func openFilesRootIfNeeded() async {
+        guard paired else { return }
+        if let current = crumbs.last {
+            await loadEntries(pathB64: current.pathB64)
+            return
+        }
+        filesLoading = true
+        defer { filesLoading = false }
+        do {
+            let rootB64 = try await client.downloadsDirectory()
+            let rootName = Self.decodeB64Path(rootB64).map { ($0 as NSString).lastPathComponent } ?? "Download"
+            crumbs = [Crumb(name: rootName, pathB64: rootB64)]
+            await loadEntries(pathB64: rootB64)
+        } catch {
+            statusLine = "Cartella download non trovata: \(error.localizedDescription)"
+        }
+    }
+
+    func enter(_ entry: FsEntry) async {
+        guard entry.isDirectory else { return }
+        crumbs.append(Crumb(name: entry.name, pathB64: entry.path))
+        await loadEntries(pathB64: entry.path)
+    }
+
+    func goBack() async {
+        guard crumbs.count > 1 else { return }
+        crumbs.removeLast()
+        if let current = crumbs.last {
+            await loadEntries(pathB64: current.pathB64)
+        }
+    }
+
+    func reloadFiles() async {
+        if let current = crumbs.last {
+            await loadEntries(pathB64: current.pathB64)
+        }
+    }
+
+    private func loadEntries(pathB64: String) async {
+        filesLoading = true
+        defer { filesLoading = false }
+        do {
+            let list = try await client.listFolder(pathB64: pathB64)
+            entries = list.sorted { lhs, rhs in
+                if lhs.isDirectory != rhs.isDirectory { return lhs.isDirectory }
+                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            }
+        } catch {
+            statusLine = error.localizedDescription
+        }
+    }
+
+    /// Copia un file dalla box in ~/Downloads del Mac.
+    func downloadToMac(_ entry: FsEntry) async {
+        guard !entry.isDirectory else { return }
+        statusLine = "Scarico \(entry.name) sul Mac…"
+        do {
+            let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
+            let destination = try await client.downloadFile(
+                pathB64: entry.path,
+                toDirectory: downloads,
+                suggestedName: entry.name
+            )
+            statusLine = nil
+            notify(title: "File copiato sul Mac", body: destination.lastPathComponent)
+        } catch {
+            statusLine = error.localizedDescription
+        }
+    }
+
+    /// Apre la condivisione SMB della box nel Finder.
+    func openSMBShare() {
+        if let url = URL(string: "smb://192.168.1.254") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
     // MARK: Pairing (dal pannello)
 
     func pair() async {
@@ -162,7 +267,7 @@ final class AppModel: ObservableObject {
         ) { [weak self] error in
             Task { @MainActor in
                 self?.statusLine = error == nil
-                    ? "MagnetBox è ora l'app per i link magnet"
+                    ? "IliadBar è ora l'app per i link magnet"
                     : "Registrazione handler fallita: \(error!.localizedDescription)"
             }
         }
@@ -184,6 +289,11 @@ final class AppModel: ObservableObject {
     }
 
     // MARK: Helpers
+
+    static func decodeB64Path(_ b64: String) -> String? {
+        guard let data = Data(base64Encoded: b64) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
 
     private func displayName(forMagnet magnet: String) -> String {
         guard let components = URLComponents(string: magnet),
