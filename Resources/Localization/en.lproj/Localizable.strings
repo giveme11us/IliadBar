@@ -405,3 +405,11 @@
 "Nessun file da caricare: esistono già tutti" = "Nothing to upload: they all already exist";
 "Trascina un file .torrent o .nzb" = "Drag a .torrent or .nzb file";
 "Modifica" = "Modified";
+
+/* Network & Services: device picker, read-only, planning */
+"Nessun dispositivo rilevato" = "No devices detected";
+"Questa sezione è di sola consultazione: la configurazione dei servizi si cambia dall'interfaccia web della box. Le credenziali non vengono mai lette né mostrate da IliadBar." = "This section is read-only: services are configured from the box web interface. Credentials are never read or displayed by IliadBar.";
+"Scegli un dispositivo" = "Choose a device";
+"Sola lettura" = "Read-only";
+"Sola lettura: questo servizio si configura dall'interfaccia web della box" = "Read-only: this service is configured from the box web interface";
+"Trascina sulle fasce per applicarle in blocco; un tocco alterna lo stato." = "Drag across time slots to set them in bulk; a tap cycles the state.";

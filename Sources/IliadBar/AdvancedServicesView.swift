@@ -1,3 +1,4 @@
+import IliadBarDesign
 import IliadboxKit
 import SwiftUI
 
@@ -207,8 +208,11 @@ struct AdvancedServicesView: View {
           available: model.advancedCapabilities.contains(.remoteAccess),
           enabled: model.connectionConfiguration?.apiRemoteAccess,
           details: model.connectionConfiguration?.remoteAccessPort.map { "porta \($0)" } ?? "")
-        Text("Le credenziali dei servizi non vengono mai lette né mostrate da IliadBar.")
-          .font(.caption).foregroundStyle(.secondary)
+        Text(
+          "Questa sezione è di sola consultazione: la configurazione dei servizi si cambia dall'interfaccia web della box. Le credenziali non vengono mai lette né mostrate da IliadBar."
+        )
+        .font(.caption).foregroundStyle(.secondary)
+        .fixedSize(horizontal: false, vertical: true)
       }
       .padding(20)
     }
@@ -416,7 +420,7 @@ struct AdvancedServicesView: View {
     GroupBox {
       HStack {
         Image(systemName: icon).font(.title2).frame(width: 34)
-        VStack(alignment: .leading) {
+        VStack(alignment: .leading, spacing: 2) {
           Text(title).fontWeight(.medium)
           Text(
             available
@@ -426,8 +430,17 @@ struct AdvancedServicesView: View {
         }
         Spacer()
         if available {
-          Text(enabled == true ? "Attivo" : "Disattivo").foregroundStyle(
-            enabled == true ? .green : .secondary)
+          HStack(spacing: 8) {
+            Text(enabled == true ? "Attivo" : "Disattivo")
+              .foregroundStyle(enabled == true ? IliadTint.online : Color.secondary)
+            // Onestà dei controlli: qui si legge soltanto, e va detto —
+            // meglio di un elemento che sembra premibile e non lo è.
+            Image(systemName: "eye")
+              .imageScale(.small)
+              .foregroundStyle(.tertiary)
+              .help("Sola lettura: questo servizio si configura dall'interfaccia web della box")
+              .accessibilityLabel("Sola lettura")
+          }
         }
       }
     }
@@ -464,8 +477,10 @@ private struct ParentalPlanningSheet: View {
   let rule: ParentalRule
   @Environment(\.dismiss) private var dismiss
   private let days = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"]
+  private static let dayLabelWidth: CGFloat = 28
   @State private var draftMapping: [String] = []
   @State private var saving = false
+  @State private var paintState: String?
 
   var body: some View {
     VStack(alignment: .leading, spacing: 16) {
@@ -494,24 +509,34 @@ private struct ParentalPlanningSheet: View {
       }
       if let planning = model.selectedParentalPlanning {
         VStack(spacing: 8) {
+          hourAxis
           ForEach(Array(days.enumerated()), id: \.offset) { dayIndex, day in
             HStack(spacing: 6) {
-              Text(day).font(.caption).frame(width: 28, alignment: .leading)
-              HStack(spacing: 1) {
-                ForEach(0..<planning.resolution, id: \.self) { slot in
-                  Rectangle()
-                    .fill(planningColor(state: state(planning, day: dayIndex, slot: slot)))
-                    .frame(height: 18)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                      guard model.parentalControlAllowed else { return }
-                      cycleState(planning, day: dayIndex, slot: slot)
-                    }
-                    .accessibilityLabel(
-                      "\(day), fascia \(slot + 1): \(state(planning, day: dayIndex, slot: slot))")
+              Text(day).font(.caption).frame(width: Self.dayLabelWidth, alignment: .leading)
+              // Le celle restano view singole (una etichetta VoiceOver
+              // ciascuna); il trascinamento arriva dal gesto sulla riga.
+              GeometryReader { geometry in
+                HStack(spacing: 1) {
+                  ForEach(0..<planning.resolution, id: \.self) { slot in
+                    Rectangle()
+                      .fill(planningColor(state: state(planning, day: dayIndex, slot: slot)))
+                      .contentShape(Rectangle())
+                      .accessibilityLabel(
+                        "\(day), \(hourLabel(planning, slot: slot)): \(state(planning, day: dayIndex, slot: slot))"
+                      )
+                  }
                 }
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+                .gesture(
+                  DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                      paint(
+                        planning, day: dayIndex, x: value.location.x, width: geometry.size.width)
+                    }
+                    .onEnded { _ in paintState = nil }
+                )
               }
-              .clipShape(RoundedRectangle(cornerRadius: 4))
+              .frame(height: 18)
             }
           }
         }
@@ -521,7 +546,7 @@ private struct ParentalPlanningSheet: View {
           legend("Bloccato", .red)
         }
         if model.parentalControlAllowed {
-          Text("Seleziona le fasce per alternare consentito, solo web e bloccato.")
+          Text("Trascina sulle fasce per applicarle in blocco; un tocco alterna lo stato.")
             .font(.caption).foregroundStyle(.secondary)
         } else {
           Text(
@@ -540,20 +565,54 @@ private struct ParentalPlanningSheet: View {
     }
   }
 
+  /// Asse delle ore: senza, una fascia non dice a che ora corrisponde.
+  private var hourAxis: some View {
+    HStack(spacing: 6) {
+      Spacer().frame(width: Self.dayLabelWidth)
+      GeometryReader { geometry in
+        ForEach(Array(stride(from: 0, through: 24, by: 3)), id: \.self) { hour in
+          Text("\(hour)")
+            .font(.caption2.monospacedDigit())
+            .foregroundStyle(.secondary)
+            .position(
+              x: max(6, min(geometry.size.width - 6, geometry.size.width * CGFloat(hour) / 24)),
+              y: 7)
+        }
+      }
+      .frame(height: 14)
+    }
+  }
+
+  private func hourLabel(_ planning: ParentalPlanning, slot: Int) -> String {
+    let minutesPerSlot = 24 * 60 / max(1, planning.resolution)
+    let minutes = slot * minutesPerSlot
+    return String(format: "%02d:%02d", minutes / 60, minutes % 60)
+  }
+
   private func state(_ planning: ParentalPlanning, day: Int, slot: Int) -> String {
     let index = day * planning.resolution + slot
     if draftMapping.indices.contains(index) { return draftMapping[index] }
     return planning.mapping.indices.contains(index) ? planning.mapping[index] : "allowed"
   }
-  private func cycleState(_ planning: ParentalPlanning, day: Int, slot: Int) {
+
+  /// Il primo slot toccato decide lo stato da applicare; tutti quelli
+  /// attraversati nello stesso trascinamento ricevono quello.
+  private func paint(_ planning: ParentalPlanning, day: Int, x: CGFloat, width: CGFloat) {
+    guard model.parentalControlAllowed, width > 0 else { return }
+    let slotWidth = width / CGFloat(planning.resolution)
+    let slot = min(planning.resolution - 1, max(0, Int(x / slotWidth)))
     let index = day * planning.resolution + slot
     guard draftMapping.indices.contains(index) else { return }
-    draftMapping[index] =
-      switch draftMapping[index] {
-      case ParentalAccessMode.allowed.rawValue: ParentalAccessMode.webonly.rawValue
-      case ParentalAccessMode.webonly.rawValue: ParentalAccessMode.denied.rawValue
-      default: ParentalAccessMode.allowed.rawValue
-      }
+    if paintState == nil { paintState = nextState(after: draftMapping[index]) }
+    if let paintState { draftMapping[index] = paintState }
+  }
+
+  private func nextState(after current: String) -> String {
+    switch current {
+    case ParentalAccessMode.allowed.rawValue: ParentalAccessMode.webonly.rawValue
+    case ParentalAccessMode.webonly.rawValue: ParentalAccessMode.denied.rawValue
+    default: ParentalAccessMode.allowed.rawValue
+    }
   }
   private func planningColor(state: String) -> Color {
     switch state {
@@ -639,6 +698,10 @@ private struct AddForwardingRuleSheet: View {
         Text("UDP").tag("udp")
       }.pickerStyle(.segmented)
       TextField("Porta pubblica", text: $publicPort)
+      LanHostPicker(hosts: model.lanHosts) { host in
+        lanIP = host.ipv4Address ?? lanIP
+        if comment.isEmpty { comment = host.primaryName }
+      }
       TextField("IP del dispositivo", text: $lanIP)
       TextField("Porta privata", text: $privatePort)
       TextField("Descrizione", text: $comment)

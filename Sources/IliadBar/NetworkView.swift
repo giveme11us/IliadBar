@@ -411,6 +411,35 @@ struct NetworkView: View {
   }
 }
 
+/// Scelta di un dispositivo già visto sulla rete: usata da prenotazioni DHCP
+/// e regole NAT per non far digitare indirizzi che l'app conosce.
+struct LanHostPicker: View {
+  let hosts: [LanHost]
+  let onSelect: (LanHost) -> Void
+
+  var body: some View {
+    Menu {
+      if hosts.isEmpty {
+        Text("Nessun dispositivo rilevato")
+      }
+      ForEach(hosts) { host in
+        Button {
+          onSelect(host)
+        } label: {
+          Text(verbatim: label(for: host))
+        }
+      }
+    } label: {
+      Label("Scegli un dispositivo", systemImage: "desktopcomputer")
+    }
+    .disabled(hosts.isEmpty)
+  }
+
+  private func label(for host: LanHost) -> String {
+    [host.primaryName, host.ipv4Address].compactMap { $0 }.joined(separator: " · ")
+  }
+}
+
 private struct AddLeaseSheet: View {
   @ObservedObject var model: AppModel
   @Binding var isPresented: Bool
@@ -420,6 +449,12 @@ private struct AddLeaseSheet: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 14) {
       Text("Nuova prenotazione DHCP").font(.title2.bold())
+      // L'app conosce già i dispositivi della LAN: sceglierne uno riempie
+      // i campi invece di farli ricopiare a mano.
+      LanHostPicker(hosts: model.lanHosts) { host in
+        ip = host.ipv4Address ?? ip
+        mac = host.macAddress ?? mac
+      }
       TextField("Indirizzo IPv4", text: $ip)
       TextField("Indirizzo MAC", text: $mac)
       HStack {

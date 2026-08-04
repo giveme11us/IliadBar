@@ -374,3 +374,11 @@
 "Nessun file da caricare: esistono già tutti" = "Nessun file da caricare: esistono già tutti";
 "Trascina un file .torrent o .nzb" = "Trascina un file .torrent o .nzb";
 "Modifica" = "Modifica";
+
+/* Rete e Servizi: picker dispositivi, sola lettura, pianificazione */
+"Nessun dispositivo rilevato" = "Nessun dispositivo rilevato";
+"Questa sezione è di sola consultazione: la configurazione dei servizi si cambia dall'interfaccia web della box. Le credenziali non vengono mai lette né mostrate da IliadBar." = "Questa sezione è di sola consultazione: la configurazione dei servizi si cambia dall'interfaccia web della box. Le credenziali non vengono mai lette né mostrate da IliadBar.";
+"Scegli un dispositivo" = "Scegli un dispositivo";
+"Sola lettura" = "Sola lettura";
+"Sola lettura: questo servizio si configura dall'interfaccia web della box" = "Sola lettura: questo servizio si configura dall'interfaccia web della box";
+"Trascina sulle fasce per applicarle in blocco; un tocco alterna lo stato." = "Trascina sulle fasce per applicarle in blocco; un tocco alterna lo stato.";
