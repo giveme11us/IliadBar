@@ -328,3 +328,33 @@
 "concesso" = "concesso";
 "solo lettura" = "solo lettura";
 "API" = "API";
+
+/* Pairing, menu contestuale e testi scelti da un ternario */
+"Associa questo Mac" = "Associa questo Mac";
+"Attiva Wi‑Fi" = "Attiva Wi‑Fi";
+"Attivare il Wi‑Fi?" = "Attivare il Wi‑Fi?";
+"Attivo" = "Attivo";
+"Copia in ~/Downloads del Mac" = "Copia in ~/Downloads del Mac";
+"Disattiva Wi‑Fi" = "Disattiva Wi‑Fi";
+"Disattivare il Wi‑Fi?" = "Disattivare il Wi‑Fi?";
+"Disattivo" = "Disattivo";
+"IliadBar offline" = "IliadBar offline";
+"IliadBar online" = "IliadBar online";
+"Impostazioni…" = "Impostazioni…";
+"In attesa della conferma sulla iliadbox" = "In attesa della conferma sulla iliadbox";
+"Live" = "Live";
+"Nessun download" = "Nessun download";
+"Nessun risultato" = "Nessun risultato";
+"Nessuna attività" = "Nessuna attività";
+"Pausa" = "Pausa";
+"Polling" = "Polling";
+"Riprendi" = "Riprendi";
+"Sblocco in corso…" = "Sblocco in corso…";
+"Server attivo" = "Server attivo";
+"Server disattivo" = "Server disattivo";
+"Sul display della box conferma la richiesta di accesso di IliadBar." = "Sul display della box conferma la richiesta di accesso di IliadBar.";
+"TROVATE SULLA RETE" = "TROVATE SULLA RETE";
+"Usa la credenziale salvata" = "Usa la credenziale salvata";
+"Usa questa iliadbox" = "Usa questa iliadbox";
+"Wi‑Fi attivo" = "Wi‑Fi attivo";
+"Wi‑Fi disattivo" = "Wi‑Fi disattivo";

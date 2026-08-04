@@ -127,7 +127,7 @@ private struct BoxSettingsView: View {
             HStack {
               VStack(alignment: .leading, spacing: 2) {
                 Text(box.name)
-                Text("API \(box.apiVersion) · \(box.supportsHTTPS ? "HTTPS" : "HTTP")")
+                Text(DiscoveryPresentation.detailLabel(box))
                   .font(.caption)
                   .foregroundStyle(.secondary)
               }
@@ -211,12 +211,7 @@ private struct BoxSettingsView: View {
   }
 
   private var discoveryCopy: String {
-    switch model.discoveryState {
-    case .idle: NSLocalizedString("Ricerca non attiva", comment: "Discovery state")
-    case .searching: NSLocalizedString("Cerco una iliadbox…", comment: "Discovery state")
-    case .ready: NSLocalizedString("Nessuna iliadbox trovata", comment: "Discovery state")
-    case .waiting(let message), .failed(let message): message
-    }
+    DiscoveryPresentation.stateLabel(model.discoveryState)
   }
 }
 

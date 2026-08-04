@@ -6,6 +6,11 @@ AUDIT_DIR=$(mktemp -d /tmp/iliadbar-l10n-audit.XXXXXX)
 trap 'rm -rf "$AUDIT_DIR"' EXIT
 LOCALIZATION_SOURCES=(Sources/IliadBar/*.swift Sources/IliadBarWidget/*.swift Sources/IliadboxKit/FbxResponse.swift)
 
+# Letterali che finiscono in un ternario ma non sono testo per l'utente:
+# valori logici, nomi di simboli SF senza punto, sigle di protocollo.
+# Aggiungerne di nuovi solo dopo aver verificato che non finiscano a schermo.
+NON_UI_LITERALS='^(true|false|yes|no|nopass|HTTP|HTTPS|WPA|WEP|circle|magnifyingglass|100%)$'
+
 xcrun extractLocStrings -SwiftUI -u -littleEndian -o "$AUDIT_DIR" "${LOCALIZATION_SOURCES[@]}" >/dev/null 2>&1
 plutil -lint Resources/Localization/en.lproj/Localizable.strings Resources/Localization/it.lproj/Localizable.strings >/dev/null
 plutil -convert json -o "$AUDIT_DIR/extracted.json" "$AUDIT_DIR/Localizable.strings"
@@ -21,7 +26,7 @@ jq -r 'keys[]' "$AUDIT_DIR/extracted.json" | sort > "$AUDIT_DIR/extracted.keys"
 # LocalizedStringKey — `Text(String)` non localizzerebbe); primo argomento
 # posizionale dei nostri helper di card.
 perl -nle '
-  while (/(?:Text|Label|Button|Toggle|Picker|Menu|navigationTitle|accessibilityLabel|ContentUnavailableView|TextField|confirmationDialog|appString|fbxLocalized|NSLocalizedString|serviceCard|permissionRow|metric)\(\s*"((?:[^"\\]|\\.)*)"/g) {
+  while (/(?:Text|Label|Button|Toggle|Picker|Menu|navigationTitle|accessibilityLabel|ContentUnavailableView|TextField|confirmationDialog|appString|fbxLocalized|NSLocalizedString|serviceCard|permissionRow|metric|help)\(\s*"((?:[^"\\]|\\.)*)"/g) {
     print $1;
   }
   while (/\b(?:title|label):\s*"((?:[^"\\]|\\.)*)"/g) {
@@ -30,8 +35,16 @@ perl -nle '
   while (/String\(localized:\s*"((?:[^"\\]|\\.)*)"/g) {
     print $1;
   }
+  # Testo scelto con un ternario ("attivo" : "disattivo"): sfugge a ogni
+  # estrattore basato sul nome dell inizializzatore.
+  while (/\?\s*"((?:[^"\\]|\\.)*)"\s*:\s*"((?:[^"\\]|\\.)*)"/g) {
+    print $1;
+    print $2;
+  }
 ' "${LOCALIZATION_SOURCES[@]}" \
   | grep -vF '\(' \
+  | grep -vE '^[a-z0-9]+(\.[a-z0-9]+)+$' \
+  | grep -vE "$NON_UI_LITERALS" \
   | sort -u > "$AUDIT_DIR/swiftui-literals.keys"
 cat "$AUDIT_DIR/extracted.keys" "$AUDIT_DIR/swiftui-literals.keys" \
   | sort -u > "$AUDIT_DIR/required.keys"

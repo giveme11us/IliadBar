@@ -365,3 +365,27 @@
 "concesso" = "granted";
 "solo lettura" = "read-only";
 "API" = "API";
+
+/* Pairing, context menu and ternary-selected copy */
+"Associa questo Mac" = "Pair this Mac";
+"Attivo" = "Enabled";
+"Copia in ~/Downloads del Mac" = "Copy to ~/Downloads on this Mac";
+"Disattivo" = "Disabled";
+"IliadBar offline" = "IliadBar offline";
+"IliadBar online" = "IliadBar online";
+"Impostazioni…" = "Settings…";
+"In attesa della conferma sulla iliadbox" = "Waiting for confirmation on the iliadbox";
+"Live" = "Live";
+"Nessun download" = "No downloads";
+"Nessun risultato" = "No results";
+"Nessuna attività" = "No activity";
+"Pausa" = "Pause";
+"Polling" = "Polling";
+"Riprendi" = "Resume";
+"Sblocco in corso…" = "Unlocking…";
+"Server attivo" = "Server enabled";
+"Server disattivo" = "Server disabled";
+"Sul display della box conferma la richiesta di accesso di IliadBar." = "Confirm IliadBar's access request on the box display.";
+"TROVATE SULLA RETE" = "FOUND ON THE NETWORK";
+"Usa la credenziale salvata" = "Use the saved credential";
+"Usa questa iliadbox" = "Use this iliadbox";

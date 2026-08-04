@@ -139,7 +139,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     NSLog("IliadBar status item registered (button: %@)", item.button == nil ? "no" : "yes")
     if let button = item.button {
       button.target = self
-      button.action = #selector(togglePopover(_:))
+      button.action = #selector(statusItemClicked(_:))
       button.sendAction(on: [.leftMouseUp, .rightMouseUp])
       button.imagePosition = .imageLeading
     }
@@ -162,13 +162,98 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     Task { await model.activateSavedCredential() }
   }
 
-  @objc private func togglePopover(_ sender: NSStatusBarButton) {
+  /// Sinistro: pannello. Destro (o ctrl-click): menu contestuale, come ogni
+  /// altra icona della menu bar di macOS.
+  @objc private func statusItemClicked(_ sender: NSStatusBarButton) {
+    let event = NSApp.currentEvent
+    let isSecondaryClick =
+      event?.type == .rightMouseUp || event?.modifierFlags.contains(.control) == true
+    if isSecondaryClick {
+      presentContextMenu(from: sender)
+    } else {
+      togglePopover(sender)
+    }
+  }
+
+  private func togglePopover(_ sender: NSStatusBarButton) {
     if popover.isShown {
       popover.performClose(sender)
     } else {
       popover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
       popover.contentViewController?.view.window?.makeKey()
     }
+  }
+
+  private func presentContextMenu(from button: NSStatusBarButton) {
+    if popover.isShown { popover.performClose(nil) }
+    let menu = NSMenu()
+    menu.addItem(
+      withTitle: String(localized: "Apri IliadBar"), action: #selector(openMainWindow),
+      keyEquivalent: "")
+    menu.addItem(
+      withTitle: String(localized: "Aggiungi magnet dagli appunti"),
+      action: #selector(addMagnetFromPasteboard), keyEquivalent: "")
+    menu.addItem(.separator())
+    menu.addItem(
+      withTitle: String(localized: "Impostazioni…"), action: #selector(openSettings),
+      keyEquivalent: ",")
+    menu.addItem(
+      withTitle: String(localized: "Controlla aggiornamenti"),
+      action: #selector(checkForUpdatesFromMenu), keyEquivalent: "")
+    menu.addItem(.separator())
+    menu.addItem(
+      withTitle: String(localized: "Esci"), action: #selector(quitApp), keyEquivalent: "q")
+    for item in menu.items where item.action != nil { item.target = self }
+    // Il menu si aggancia solo per questo click: dopo, il tasto sinistro
+    // deve tornare a mostrare il pannello.
+    statusItem?.menu = menu
+    button.performClick(nil)
+    statusItem?.menu = nil
+  }
+
+  @objc private func openMainWindow() {
+    model.mainWindowSection = .home
+    NSApp.activate(ignoringOtherApps: true)
+    // Una Window scene di SwiftUI si apre da openWindow o dalla voce di menu
+    // che SwiftUI stessa costruisce: da AppKit resta la seconda strada.
+    if !performMainMenuItem(titled: String(localized: "Home")), let button = statusItem?.button,
+      !popover.isShown
+    {
+      togglePopover(button)
+    }
+  }
+
+  private func performMainMenuItem(titled title: String) -> Bool {
+    guard let mainMenu = NSApp.mainMenu else { return false }
+    for top in mainMenu.items {
+      guard let submenu = top.submenu,
+        let item = submenu.items.first(where: { $0.title == title }),
+        let action = item.action
+      else { continue }
+      return NSApp.sendAction(action, to: item.target, from: item)
+    }
+    return false
+  }
+
+  @objc private func addMagnetFromPasteboard() {
+    Task { await model.addFromPasteboard() }
+  }
+
+  @objc private func openSettings() {
+    NSApp.activate(ignoringOtherApps: true)
+    // Il selettore è cambiato in macOS 13: si prova il nuovo e si ricade sul
+    // vecchio senza assumere la versione di sistema.
+    if !NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil) {
+      NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+    }
+  }
+
+  @objc private func checkForUpdatesFromMenu() {
+    updaterController.checkForUpdates(nil)
+  }
+
+  @objc private func quitApp() {
+    NSApplication.shared.terminate(nil)
   }
 
   private func updateStatusItem() {

@@ -39,6 +39,28 @@ enum DownloadPresentation {
   }
 }
 
+/// Stato della ricerca Bonjour, condiviso da pannello e impostazioni.
+enum DiscoveryPresentation {
+  static func stateLabel(_ state: DiscoveryState) -> String {
+    switch state {
+    case .idle: NSLocalizedString("Ricerca non attiva", comment: "Discovery state")
+    case .searching: NSLocalizedString("Cerco una iliadbox…", comment: "Discovery state")
+    case .ready: NSLocalizedString("Nessuna iliadbox trovata", comment: "Discovery state")
+    case .waiting(let message), .failed(let message): message
+    }
+  }
+
+  /// "casa.local · API v15 · HTTPS" — ciò che serve per riconoscere la box
+  /// giusta prima di associarla.
+  static func detailLabel(_ box: DiscoveredBox) -> String {
+    var parts: [String] = []
+    if let host = box.baseURL.host { parts.append(host) }
+    parts.append("API v\(box.apiVersion)")
+    parts.append(box.supportsHTTPS ? "HTTPS" : "HTTP")
+    return parts.joined(separator: " · ")
+  }
+}
+
 /// Vocabolario di rete (connessione, Wi-Fi, VPN) in etichette leggibili.
 enum NetworkPresentation {
   static func connectionStateLabel(_ state: String?) -> String {

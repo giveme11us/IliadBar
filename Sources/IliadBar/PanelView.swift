@@ -408,32 +408,115 @@ struct PanelView: View {
             .foregroundStyle(.secondary)
         }
       }
-      if !model.profiles.isEmpty {
-        Button {
-          Task { await model.activateSavedCredential() }
-        } label: {
-          Label(
-            model.credentialActivationInProgress
-              ? "Attendo il Portachiavi…" : "Sblocca credenziale salvata",
-            systemImage: "key.fill"
-          )
-          .frame(maxWidth: .infinity)
+
+      if model.pairingInProgress {
+        pairingWaitCard
+      } else {
+        discoveredBoxesSection
+        if !model.profiles.isEmpty {
+          Button {
+            Task { await model.activateSavedCredential() }
+          } label: {
+            Label(
+              model.credentialActivationInProgress
+                ? "Sblocco in corso…" : "Usa la credenziale salvata",
+              systemImage: "key.fill"
+            )
+            .frame(maxWidth: .infinity)
+          }
+          .buttonStyle(.borderedProminent)
+          .tint(IliadPalette.red)
+          .disabled(model.credentialActivationInProgress)
         }
-        .buttonStyle(.borderedProminent)
-        .tint(IliadPalette.red)
-        .disabled(model.credentialActivationInProgress)
+        Button {
+          Task { await model.pair() }
+        } label: {
+          Label("Associa questo Mac", systemImage: "link.badge.plus")
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .disabled(model.profiles.isEmpty && model.discoveredBoxes.isEmpty)
       }
-      Button {
-        Task { await model.pair() }
-      } label: {
-        Label(
-          model.pairingInProgress ? "In attesa di conferma sulla box…" : "Nuova associazione",
-          systemImage: "link.badge.plus"
-        )
-        .frame(maxWidth: .infinity)
+    }
+    // La ricerca parte da sola: chi non è associato deve vedere la sua box,
+    // non un campo URL da riempire.
+    .task { model.startDiscovery() }
+  }
+
+  /// Attesa della conferma fisica: il passaggio che l'utente deve capire,
+  /// non un semplice titolo di bottone che cambia.
+  private var pairingWaitCard: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      HStack(spacing: 8) {
+        ProgressView().controlSize(.small)
+        Text("In attesa della conferma sulla iliadbox")
+          .font(.callout.weight(.medium))
       }
-      .buttonStyle(.bordered)
-      .disabled(model.pairingInProgress)
+      Text("Sul display della box conferma la richiesta di accesso di IliadBar.")
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(11)
+    .background(
+      RoundedRectangle(cornerRadius: 9, style: .continuous)
+        .fill(IliadPalette.amber.opacity(0.10))
+    )
+  }
+
+  @ViewBuilder
+  private var discoveredBoxesSection: some View {
+    if model.discoveredBoxes.isEmpty {
+      HStack(spacing: 7) {
+        if case .searching = model.discoveryState {
+          ProgressView().controlSize(.mini)
+        }
+        Text(DiscoveryPresentation.stateLabel(model.discoveryState))
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+          .lineLimit(2)
+        Spacer(minLength: 0)
+        Button("Cerca di nuovo") { model.startDiscovery() }
+          .buttonStyle(.plain)
+          .font(.caption)
+          .foregroundStyle(IliadPalette.red)
+      }
+    } else {
+      VStack(alignment: .leading, spacing: 5) {
+        Text("TROVATE SULLA RETE")
+          .font(.caption2.weight(.semibold))
+          .foregroundStyle(.secondary)
+        ForEach(model.discoveredBoxes) { box in
+          Button {
+            model.useDiscoveredBox(box)
+          } label: {
+            HStack(spacing: 8) {
+              Image(systemName: "wifi.router.fill")
+                .imageScale(.medium)
+                .frame(width: 18)
+                .foregroundStyle(IliadPalette.red)
+              VStack(alignment: .leading, spacing: 1) {
+                Text(box.name).font(.callout)
+                Text(DiscoveryPresentation.detailLabel(box))
+                  .font(.caption2)
+                  .foregroundStyle(.secondary)
+              }
+              Spacer(minLength: 0)
+              if model.activeProfileID == box.id {
+                Image(systemName: "checkmark.circle.fill")
+                  .imageScale(.small)
+                  .foregroundStyle(IliadTint.online)
+              }
+            }
+            .contentShape(Rectangle())
+            .padding(.vertical, 4)
+            .padding(.horizontal, 5)
+          }
+          .buttonStyle(.plain)
+          .help("Usa questa iliadbox")
+        }
+      }
     }
   }
 
