@@ -104,6 +104,9 @@ final class AppModel: ObservableObject {
   @Published var advancedLoading = false
   @Published var parentalControlAllowed = false
   // Stato generale
+  /// Sezione mostrata dalla finestra unica; pannello e scorciatoie la
+  /// impostano prima di aprire la finestra (PRD-UX §2).
+  @Published var mainWindowSection: MainSection = .home
   @Published var paired: Bool
   @Published var pairingInProgress = false
   @Published var credentialActivationInProgress = false

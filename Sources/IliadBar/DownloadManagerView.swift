@@ -51,7 +51,9 @@ struct DownloadManagerView: View {
   @State private var pendingRemoval: DownloadTask?
 
   var body: some View {
-    NavigationSplitView {
+    // HSplitView e non NavigationSplitView: il sidebar della finestra è uno
+    // solo (MainWindowView) e annidarne un secondo duplicherebbe i controlli.
+    HSplitView {
       VStack(spacing: 0) {
         Picker("Filtro", selection: $filter) {
           ForEach(DownloadFilter.allCases) { Text($0.title).tag($0) }
@@ -77,24 +79,25 @@ struct DownloadManagerView: View {
           }
         }
       }
-      .navigationSplitViewColumnWidth(min: 270, ideal: 320)
-    } detail: {
-      if let task = selectedTask {
-        DownloadDetailView(task: task, model: model) {
-          pendingRemoval = task
+      .frame(minWidth: 280, idealWidth: 330, maxWidth: 460)
+
+      Group {
+        if let task = selectedTask {
+          DownloadDetailView(task: task, model: model) {
+            pendingRemoval = task
+          }
+          .id(task.id)
+          .task { await model.loadDownloadDetails(task) }
+        } else {
+          ContentUnavailableView(
+            "Seleziona un download",
+            systemImage: "arrow.down.circle",
+            description: Text("Qui trovi file, tracker, peer e stato dei blocchi.")
+          )
         }
-        .id(task.id)
-        .task { await model.loadDownloadDetails(task) }
-      } else {
-        ContentUnavailableView(
-          "Seleziona un download",
-          systemImage: "arrow.down.circle",
-          description: Text("Qui trovi file, tracker, peer e stato dei blocchi.")
-        )
       }
+      .frame(minWidth: 380, maxWidth: .infinity)
     }
-    .frame(minWidth: 760, minHeight: 520)
-    .transientFeedback(model)
     .navigationTitle("Download")
     .toolbar {
       ToolbarItemGroup {
@@ -295,7 +298,7 @@ private struct DownloadDetailView: View {
     }
   }
 
-  private func metric(_ label: String, _ value: String) -> some View {
+  private func metric(_ label: LocalizedStringKey, _ value: String) -> some View {
     VStack(alignment: .leading, spacing: 2) {
       Text(label).font(.caption).foregroundStyle(.secondary)
       Text(value).font(.callout.monospacedDigit())

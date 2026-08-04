@@ -296,3 +296,35 @@
 "autenticato" = "autenticato";
 "Attiva o disattiva l'accoppiamento WPS per questa rete" = "Attiva o disattiva l'accoppiamento WPS per questa rete";
 "Le credenziali dei servizi non vengono mai lette né mostrate da IliadBar." = "Le credenziali dei servizi non vengono mai lette né mostrate da IliadBar.";
+
+/* Finestra unica: Home, sezioni e componenti localizzati */
+"%@ liberi di %@" = "%@ liberi di %@";
+"Aggiungi magnet dagli appunti" = "Aggiungi magnet dagli appunti";
+"Apri condivisione SMB nel Finder" = "Apri condivisione SMB nel Finder";
+"Apri Download" = "Apri Download";
+"Apri File" = "Apri File";
+"Apri IliadBar" = "Apri IliadBar";
+"Apri Rete" = "Apri Rete";
+"Apri Servizi" = "Apri Servizi";
+"Archivio" = "Archivio";
+"Chiamate e contatti" = "Chiamate e contatti";
+"Condivisione" = "Condivisione";
+"Controllo parentale" = "Controllo parentale";
+"DHCP" = "DHCP";
+"ETA" = "ETA";
+"Firmware" = "Firmware";
+"Home" = "Home";
+"I permessi si concedono dall'interfaccia web della iliadbox." = "I permessi si concedono dall'interfaccia web della iliadbox.";
+"Impostazioni rete" = "Impostazioni rete";
+"Modello" = "Modello";
+"Nessun download attivo" = "Nessun download attivo";
+"Permessi" = "Permessi";
+"Ricevuti" = "Ricevuti";
+"Temperatura" = "Temperatura";
+"Upload" = "Upload";
+"Uptime" = "Uptime";
+"Usa IliadBar per i link magnet" = "Usa IliadBar per i link magnet";
+"VPN e TV" = "VPN e TV";
+"concesso" = "concesso";
+"solo lettura" = "solo lettura";
+"API" = "API";

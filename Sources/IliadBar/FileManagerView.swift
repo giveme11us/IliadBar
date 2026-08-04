@@ -57,8 +57,6 @@ struct FileManagerView: View {
       }
       operationFooter
     }
-    .frame(minWidth: 720, minHeight: 500)
-    .transientFeedback(model)
     .navigationTitle("File")
     .toolbar { toolbar }
     .task {
@@ -447,12 +445,12 @@ private struct DestinationPickerView: View {
 }
 
 private struct NameEntrySheet: View {
-  let title: String
+  let title: LocalizedStringKey
   let submit: (String) -> Void
   @Environment(\.dismiss) private var dismiss
   @State private var value: String
 
-  init(title: String, initialValue: String, submit: @escaping (String) -> Void) {
+  init(title: LocalizedStringKey, initialValue: String, submit: @escaping (String) -> Void) {
     self.title = title
     self.submit = submit
     _value = State(initialValue: initialValue)

@@ -339,3 +339,29 @@
 "autenticato" = "authenticated";
 "Attiva o disattiva l'accoppiamento WPS per questa rete" = "Enable or disable WPS pairing for this network";
 "Le credenziali dei servizi non vengono mai lette né mostrate da IliadBar." = "Service credentials are never read or displayed by IliadBar.";
+
+/* Unified window: Home, sections and localized components */
+"%@ liberi di %@" = "%@ free of %@";
+"Apri condivisione SMB nel Finder" = "Open SMB share in Finder";
+"Apri Download" = "Open Downloads";
+"Apri File" = "Open Files";
+"Apri IliadBar" = "Open IliadBar";
+"Apri Rete" = "Open Network";
+"Apri Servizi" = "Open Services";
+"Archivio" = "Storage";
+"DHCP" = "DHCP";
+"ETA" = "ETA";
+"Firmware" = "Firmware";
+"Home" = "Home";
+"I permessi si concedono dall'interfaccia web della iliadbox." = "Permissions are granted from the iliadbox web interface.";
+"Impostazioni rete" = "Network settings";
+"Modello" = "Model";
+"Nessun download attivo" = "No active downloads";
+"Permessi" = "Permissions";
+"Ricevuti" = "Received";
+"Temperatura" = "Temperature";
+"Upload" = "Upload";
+"Uptime" = "Uptime";
+"concesso" = "granted";
+"solo lettura" = "read-only";
+"API" = "API";

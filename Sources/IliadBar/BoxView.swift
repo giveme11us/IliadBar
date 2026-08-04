@@ -14,15 +14,17 @@ struct BoxView: View {
       systemSection
       Divider()
       Button {
-        openWindow(id: "network")
+        model.mainWindowSection = .devices
+        openWindow(id: IliadBarWindow.main)
       } label: {
-        Label("Apri centro rete", systemImage: "network")
+        Label("Apri Rete", systemImage: "network")
       }
       .buttonStyle(.plain)
       Button {
-        openWindow(id: "services")
+        model.mainWindowSection = .nat
+        openWindow(id: IliadBarWindow.main)
       } label: {
-        Label("Apri servizi avanzati", systemImage: "server.rack")
+        Label("Apri Servizi", systemImage: "server.rack")
       }
       .buttonStyle(.plain)
     }
@@ -153,7 +155,7 @@ private struct RateRow: View {
 }
 
 private struct InfoRow: View {
-  let label: String
+  let label: LocalizedStringKey
   let value: String
 
   var body: some View {

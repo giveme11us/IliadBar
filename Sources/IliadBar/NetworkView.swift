@@ -3,7 +3,7 @@ import CoreImage
 import IliadboxKit
 import SwiftUI
 
-private enum NetworkSection: String, CaseIterable, Identifiable {
+enum NetworkSection: String, CaseIterable, Identifiable {
   case devices, wifi, dhcp
   var id: String { rawValue }
   var title: LocalizedStringKey {
@@ -15,9 +15,11 @@ private enum NetworkSection: String, CaseIterable, Identifiable {
   }
 }
 
+/// Sezione Rete della finestra unica: il sidebar vive in MainWindowView,
+/// qui resta il solo dettaglio.
 struct NetworkView: View {
   @ObservedObject var model: AppModel
-  @State private var section: NetworkSection = .devices
+  let section: NetworkSection
   @State private var search = ""
   @State private var renameHost: LanHost?
   @State private var proposedName = ""
@@ -26,46 +28,37 @@ struct NetworkView: View {
   @State private var showAddLease = false
 
   var body: some View {
-    NavigationSplitView {
-      List(NetworkSection.allCases, selection: $section) { item in
-        Label(item.title, systemImage: icon(for: item)).tag(item)
-      }
-      .navigationSplitViewColumnWidth(min: 150, ideal: 170)
-    } detail: {
-      Group {
-        switch section {
-        case .devices: devices
-        case .wifi: wifi
-        case .dhcp: dhcp
-        }
-      }
-      .navigationTitle(section.title)
-      .toolbar {
-        ToolbarItem {
-          Label(
-            model.liveEventsConnected ? "Live" : "Polling",
-            systemImage: model.liveEventsConnected
-              ? "bolt.horizontal.circle.fill" : "clock.arrow.circlepath"
-          )
-          .font(.caption).foregroundStyle(.secondary)
-          .help(
-            model.liveEventsConnected
-              ? "Aggiornamenti rete in tempo reale"
-              : "WebSocket non disponibile: aggiornamento su richiesta")
-        }
-        ToolbarItem {
-          Button {
-            Task { await model.refreshNetwork() }
-          } label: {
-            Image(systemName: "arrow.clockwise")
-          }
-          .help("Aggiorna la rete")
-          .accessibilityLabel("Aggiorna la rete")
-        }
+    Group {
+      switch section {
+      case .devices: devices
+      case .wifi: wifi
+      case .dhcp: dhcp
       }
     }
-    .frame(minWidth: 760, minHeight: 520)
-    .transientFeedback(model)
+    .navigationTitle(section.title)
+    .toolbar {
+      ToolbarItem {
+        Label(
+          model.liveEventsConnected ? "Live" : "Polling",
+          systemImage: model.liveEventsConnected
+            ? "bolt.horizontal.circle.fill" : "clock.arrow.circlepath"
+        )
+        .font(.caption).foregroundStyle(.secondary)
+        .help(
+          model.liveEventsConnected
+            ? "Aggiornamenti rete in tempo reale"
+            : "WebSocket non disponibile: aggiornamento su richiesta")
+      }
+      ToolbarItem {
+        Button {
+          Task { await model.refreshNetwork() }
+        } label: {
+          Image(systemName: "arrow.clockwise")
+        }
+        .help("Aggiorna la rete")
+        .accessibilityLabel("Aggiorna la rete")
+      }
+    }
     .task { await model.refreshNetwork() }
     .alert(
       "Rinomina dispositivo",
@@ -371,13 +364,6 @@ struct NetworkView: View {
     }
   }
 
-  private func icon(for section: NetworkSection) -> String {
-    switch section {
-    case .devices: "desktopcomputer"
-    case .wifi: "wifi"
-    case .dhcp: "network"
-    }
-  }
   private func deviceIcon(_ type: String?) -> String {
     switch type?.lowercased() {
     case "smartphone", "phone": "iphone"

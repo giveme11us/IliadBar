@@ -37,8 +37,8 @@ private struct ConnectionWidgetView: View {
           width: 8, height: 8)
       }
       Spacer()
-      metric("arrow.down", entry.snapshot?.downloadRate ?? 0, color: IliadTint.trafficDown)
-      metric("arrow.up", entry.snapshot?.uploadRate ?? 0, color: IliadTint.trafficUp)
+      trafficRow("arrow.down", entry.snapshot?.downloadRate ?? 0, color: IliadTint.trafficDown)
+      trafficRow("arrow.up", entry.snapshot?.uploadRate ?? 0, color: IliadTint.trafficUp)
       if let snapshot = entry.snapshot {
         Text("Aggiornato \(snapshot.updatedAt, style: .relative)")
           .font(.caption2).foregroundStyle(.secondary)
@@ -49,7 +49,9 @@ private struct ConnectionWidgetView: View {
     }
     .containerBackground(.fill.tertiary, for: .widget)
   }
-  private func metric(_ icon: String, _ rate: Int64, color: Color) -> some View {
+  /// Nome distinto da `metric(_:_:)` dell'app: qui il primo argomento è un
+  /// simbolo SF, non una stringa da localizzare.
+  private func trafficRow(_ icon: String, _ rate: Int64, color: Color) -> some View {
     HStack {
       Image(systemName: icon).foregroundStyle(color)
       Text(ByteCountFormatter.string(fromByteCount: rate, countStyle: .file) + "/s")

@@ -293,13 +293,22 @@ struct PanelView: View {
       ActionRow(icon: "doc.on.clipboard", title: "Aggiungi magnet dagli appunti") {
         Task { await model.addFromPasteboard() }
       }
-      ActionRow(icon: "network", title: "Apri centro rete") {
-        openWindow(id: "network")
+      ActionRow(icon: "house", title: "Apri IliadBar") {
+        open(.home)
       }
-      ActionRow(icon: "server.rack", title: "Apri servizi avanzati") {
-        openWindow(id: "services")
+      ActionRow(icon: "network", title: "Apri Rete") {
+        open(.devices)
+      }
+      ActionRow(icon: "server.rack", title: "Apri Servizi") {
+        open(.nat)
       }
     }
+  }
+
+  /// Porta la finestra unica sulla sezione richiesta e la mostra.
+  private func open(_ section: MainSection) {
+    model.mainWindowSection = section
+    openWindow(id: IliadBarWindow.main)
   }
 
   private var activeBoxName: String {
@@ -365,8 +374,8 @@ struct PanelView: View {
       ActionRow(icon: "link", title: "Usa IliadBar per i link magnet") {
         model.registerAsMagnetHandler()
       }
-      ActionRow(icon: "arrow.down.circle", title: "Apri download manager") {
-        openWindow(id: "downloads")
+      ActionRow(icon: "arrow.down.circle", title: "Apri Download") {
+        open(.download)
       }
     }
   }
@@ -476,7 +485,7 @@ struct PanelView: View {
 }
 
 private struct TrafficMetric: View {
-  let label: String
+  let label: LocalizedStringKey
   let symbol: String
   let value: Int64
   let bandwidth: Int64?
@@ -526,7 +535,8 @@ private struct SystemDatum: View {
 
 struct ActionRow: View {
   let icon: String
-  let title: String
+  /// LocalizedStringKey e non String: `Text(String)` non localizza.
+  let title: LocalizedStringKey
   let action: () -> Void
   @State private var hovering = false
 

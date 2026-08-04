@@ -16,8 +16,18 @@ jq -r 'keys[]' "$AUDIT_DIR/extracted.json" | sort > "$AUDIT_DIR/extracted.keys"
 # user-visible initializers; interpolated strings remain handled by the Apple
 # extractor so their positional placeholders are preserved correctly.
 # perl instead of ripgrep: the CI runner does not ship rg.
+# Tre famiglie: inizializzatori SwiftUI e helper di localizzazione; argomenti
+# etichettati title:/label: dei componenti interni (che prendono
+# LocalizedStringKey — `Text(String)` non localizzerebbe); primo argomento
+# posizionale dei nostri helper di card.
 perl -nle '
-  while (/(?:Text|Label|Button|Toggle|Picker|Menu|navigationTitle|accessibilityLabel|ContentUnavailableView|TextField|confirmationDialog|appString|fbxLocalized|NSLocalizedString)\(\s*"((?:[^"\\]|\\.)*)"/g) {
+  while (/(?:Text|Label|Button|Toggle|Picker|Menu|navigationTitle|accessibilityLabel|ContentUnavailableView|TextField|confirmationDialog|appString|fbxLocalized|NSLocalizedString|serviceCard|permissionRow|metric)\(\s*"((?:[^"\\]|\\.)*)"/g) {
+    print $1;
+  }
+  while (/\b(?:title|label):\s*"((?:[^"\\]|\\.)*)"/g) {
+    print $1;
+  }
+  while (/String\(localized:\s*"((?:[^"\\]|\\.)*)"/g) {
     print $1;
   }
 ' "${LOCALIZATION_SOURCES[@]}" \
@@ -26,14 +36,17 @@ perl -nle '
 cat "$AUDIT_DIR/extracted.keys" "$AUDIT_DIR/swiftui-literals.keys" \
   | sort -u > "$AUDIT_DIR/required.keys"
 
+AUDIT_FAILED=0
 for LOCALE in en it; do
   plutil -convert json -o "$AUDIT_DIR/$LOCALE.json" "Resources/Localization/$LOCALE.lproj/Localizable.strings"
   jq -r 'keys[]' "$AUDIT_DIR/$LOCALE.json" | sort > "$AUDIT_DIR/$LOCALE.keys"
+  # Nessun early exit: si riportano tutte le lingue in una sola passata.
   if MISSING=$(comm -23 "$AUDIT_DIR/required.keys" "$AUDIT_DIR/$LOCALE.keys") && [[ -n "$MISSING" ]]; then
     echo "Stringhe mancanti per $LOCALE:" >&2
     echo "$MISSING" >&2
-    exit 1
+    AUDIT_FAILED=1
   fi
 done
+[[ "$AUDIT_FAILED" == "0" ]] || exit 1
 
 echo "Localizzazione OK: tutte le stringhe SwiftUI estratte sono catalogate in it/en."

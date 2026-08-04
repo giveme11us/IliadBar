@@ -32,8 +32,9 @@ struct FilesView: View {
       ActionRow(icon: "network", title: "Apri condivisione SMB nel Finder") {
         model.openSMBShare()
       }
-      ActionRow(icon: "folder", title: "Apri file manager") {
-        openWindow(id: "files")
+      ActionRow(icon: "folder", title: "Apri File") {
+        model.mainWindowSection = .file
+        openWindow(id: IliadBarWindow.main)
       }
     }
     .task { await model.openFilesRootIfNeeded() }

@@ -21,27 +21,18 @@ struct IliadBarApp: App {
       SettingsView(model: delegate.model)
     }
 
-    Window("Download", id: "downloads") {
-      DownloadManagerView(model: delegate.model)
+    // Una sola finestra di gestione: le sezioni vivono nel suo sidebar
+    // (PRD-UX §2). Le Impostazioni restano la finestra Settings nativa.
+    Window("IliadBar", id: IliadBarWindow.main) {
+      MainWindowView(model: delegate.model)
     }
-    .defaultSize(width: 900, height: 620)
+    .defaultSize(width: 1060, height: 680)
     .commands { IliadBarCommands(model: delegate.model) }
-
-    Window("File", id: "files") {
-      FileManagerView(model: delegate.model)
-    }
-    .defaultSize(width: 820, height: 580)
-
-    Window("Rete", id: "network") {
-      NetworkView(model: delegate.model)
-    }
-    .defaultSize(width: 900, height: 620)
-
-    Window("Servizi", id: "services") {
-      AdvancedServicesView(model: delegate.model)
-    }
-    .defaultSize(width: 940, height: 650)
   }
+}
+
+enum IliadBarWindow {
+  static let main = "main"
 }
 
 private struct IliadBarCommands: Commands {
@@ -50,13 +41,19 @@ private struct IliadBarCommands: Commands {
 
   var body: some Commands {
     CommandMenu("IliadBar") {
-      Button("Apri download manager") { openWindow(id: "downloads") }.keyboardShortcut("1")
-      Button("Apri file manager") { openWindow(id: "files") }.keyboardShortcut("2")
-      Button("Apri centro rete") { openWindow(id: "network") }.keyboardShortcut("3")
-      Button("Apri servizi avanzati") { openWindow(id: "services") }.keyboardShortcut("4")
+      Button("Home") { open(.home) }.keyboardShortcut("1")
+      Button("Download") { open(.download) }.keyboardShortcut("2")
+      Button("File") { open(.file) }.keyboardShortcut("3")
+      Button("Dispositivi") { open(.devices) }.keyboardShortcut("4")
+      Button("Porte e NAT") { open(.nat) }.keyboardShortcut("5")
       Divider()
       Button("Aggiorna") { Task { await model.refresh() } }.keyboardShortcut("r")
     }
+  }
+
+  private func open(_ section: MainSection) {
+    model.mainWindowSection = section
+    openWindow(id: IliadBarWindow.main)
   }
 }
 

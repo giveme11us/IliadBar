@@ -70,7 +70,10 @@ Requisiti:
   è un corpo estraneo su macOS.
 - Impostazioni resta la finestra Settings nativa macOS (convenzione di
   piattaforma, non frammentazione).
-- Stato preservato: dimensione/posizione finestra e ultima sezione ricordate.
+- Stato preservato: dimensione e posizione della finestra ricordate da macOS.
+  La sezione non viene ricordata: l'apertura generica atterra su Home, mentre
+  le azioni mirate (pannello, scorciatoie) impostano la sezione prima di
+  mostrare la finestra.
 
 ## 3. Requisiti trasversali (fondamenta)
 

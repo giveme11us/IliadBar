@@ -1,7 +1,7 @@
 import IliadboxKit
 import SwiftUI
 
-private enum ServiceSection: String, CaseIterable, Identifiable {
+enum ServiceSection: String, CaseIterable, Identifiable {
   case nat, services, family, communications, media
   var id: String { rawValue }
   var title: LocalizedStringKey {
@@ -24,9 +24,11 @@ private enum ServiceSection: String, CaseIterable, Identifiable {
   }
 }
 
+/// Sezione Servizi della finestra unica: il sidebar vive in MainWindowView,
+/// qui resta il solo dettaglio.
 struct AdvancedServicesView: View {
   @ObservedObject var model: AppModel
-  @State private var section: ServiceSection = .nat
+  let section: ServiceSection
   @State private var showAddRule = false
   @State private var pendingDeletion: PortForwardingRule?
   @State private var selectedParentalRule: ParentalRule?
@@ -34,36 +36,27 @@ struct AdvancedServicesView: View {
   @State private var pendingParentalDeletion: ParentalRule?
 
   var body: some View {
-    NavigationSplitView {
-      List(ServiceSection.allCases, selection: $section) { item in
-        Label(item.title, systemImage: item.icon).tag(item)
-      }
-      .navigationSplitViewColumnWidth(min: 170, ideal: 190)
-    } detail: {
-      Group {
-        switch section {
-        case .nat: nat
-        case .services: services
-        case .family: family
-        case .communications: communications
-        case .media: media
-        }
-      }
-      .navigationTitle(section.title)
-      .toolbar {
-        ToolbarItem {
-          Button {
-            Task { await model.refreshAdvancedServices() }
-          } label: {
-            Image(systemName: "arrow.clockwise")
-          }
-          .help("Aggiorna servizi")
-          .accessibilityLabel("Aggiorna servizi")
-        }
+    Group {
+      switch section {
+      case .nat: nat
+      case .services: services
+      case .family: family
+      case .communications: communications
+      case .media: media
       }
     }
-    .frame(minWidth: 820, minHeight: 560)
-    .transientFeedback(model)
+    .navigationTitle(section.title)
+    .toolbar {
+      ToolbarItem {
+        Button {
+          Task { await model.refreshAdvancedServices() }
+        } label: {
+          Image(systemName: "arrow.clockwise")
+        }
+        .help("Aggiorna servizi")
+        .accessibilityLabel("Aggiorna servizi")
+      }
+    }
     .task { await model.refreshAdvancedServices() }
     .sheet(isPresented: $showAddRule) {
       AddForwardingRuleSheet(model: model, isPresented: $showAddRule)
@@ -418,7 +411,7 @@ struct AdvancedServicesView: View {
       description: Text("Il modulo non è esposto o non è autorizzato su questa iliadbox."))
   }
   private func serviceCard(
-    _ title: String, icon: String, available: Bool, enabled: Bool?, details: String
+    _ title: LocalizedStringKey, icon: String, available: Bool, enabled: Bool?, details: String
   ) -> some View {
     GroupBox {
       HStack {
