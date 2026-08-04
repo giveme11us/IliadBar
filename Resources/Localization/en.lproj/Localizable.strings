@@ -286,3 +286,43 @@
 "—" = "—";
 "…" = "…";
 "↓ %@/s" = "↓ %@/s";
+
+/* Download status and priority (presentation layer) */
+"in download" = "downloading";
+"completato" = "completed";
+"in pausa" = "paused";
+"seeding" = "seeding";
+"in coda" = "queued";
+"verifica" = "checking";
+"riparazione" = "repairing";
+"estrazione" = "extracting";
+"avvio" = "starting";
+"nuovo tentativo" = "retrying";
+"errore" = "error";
+"errore: %@" = "error: %@";
+"bassa" = "low";
+"alta" = "high";
+"normale" = "normal";
+"non scaricare" = "don't download";
+
+/* Download filters and sorting */
+"Tutti" = "All";
+"Attivi" = "Active";
+"Completati" = "Completed";
+"Errori" = "Errors";
+"Ordina" = "Sort";
+"Ordina per" = "Sort by";
+"Ordina i download" = "Sort downloads";
+"Più recenti" = "Most recent";
+"Avanzamento" = "Progress";
+"Dimensione" = "Size";
+"Velocità" = "Speed";
+"Priorità: %@" = "Priority: %@";
+
+/* File manager */
+"%@ qui" = "%@ here";
+
+/* Granular notifications */
+"Avvio di un download" = "When a download starts";
+"Completamento di un download" = "When a download completes";
+"Scegli quali eventi dei download generano una notifica." = "Choose which download events trigger a notification.";

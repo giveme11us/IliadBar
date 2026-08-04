@@ -243,3 +243,43 @@
 "Stato e traffico della connessione." = "Stato e traffico della connessione.";
 "download attivi" = "download attivi";
 "download attivo" = "download attivo";
+
+/* Stati e priorità dei download (layer di presentazione) */
+"in download" = "in download";
+"completato" = "completato";
+"in pausa" = "in pausa";
+"seeding" = "seeding";
+"in coda" = "in coda";
+"verifica" = "verifica";
+"riparazione" = "riparazione";
+"estrazione" = "estrazione";
+"avvio" = "avvio";
+"nuovo tentativo" = "nuovo tentativo";
+"errore" = "errore";
+"errore: %@" = "errore: %@";
+"bassa" = "bassa";
+"alta" = "alta";
+"normale" = "normale";
+"non scaricare" = "non scaricare";
+
+/* Filtri e ordinamento download */
+"Tutti" = "Tutti";
+"Attivi" = "Attivi";
+"Completati" = "Completati";
+"Errori" = "Errori";
+"Ordina" = "Ordina";
+"Ordina per" = "Ordina per";
+"Ordina i download" = "Ordina i download";
+"Più recenti" = "Più recenti";
+"Avanzamento" = "Avanzamento";
+"Dimensione" = "Dimensione";
+"Velocità" = "Velocità";
+"Priorità: %@" = "Priorità: %@";
+
+/* File manager */
+"%@ qui" = "%@ qui";
+
+/* Notifiche granulari */
+"Avvio di un download" = "Avvio di un download";
+"Completamento di un download" = "Completamento di un download";
+"Scegli quali eventi dei download generano una notifica." = "Scegli quali eventi dei download generano una notifica.";

@@ -2,11 +2,42 @@ import IliadboxKit
 import SwiftUI
 
 private enum DownloadFilter: String, CaseIterable, Identifiable {
-  case all = "Tutti"
-  case active = "Attivi"
-  case finished = "Completati"
-  case errors = "Errori"
+  case all, active, finished, errors
   var id: String { rawValue }
+
+  var title: LocalizedStringKey {
+    switch self {
+    case .all: "Tutti"
+    case .active: "Attivi"
+    case .finished: "Completati"
+    case .errors: "Errori"
+    }
+  }
+}
+
+private enum DownloadSort: String, CaseIterable, Identifiable {
+  case recent, name, progress, size, speed
+  var id: String { rawValue }
+
+  var title: LocalizedStringKey {
+    switch self {
+    case .recent: "Più recenti"
+    case .name: "Nome"
+    case .progress: "Avanzamento"
+    case .size: "Dimensione"
+    case .speed: "Velocità"
+    }
+  }
+
+  func areInOrder(_ lhs: DownloadTask, _ rhs: DownloadTask) -> Bool {
+    switch self {
+    case .recent: (lhs.createdTimestamp ?? Int64(lhs.id)) > (rhs.createdTimestamp ?? Int64(rhs.id))
+    case .name: (lhs.name ?? "").localizedStandardCompare(rhs.name ?? "") == .orderedAscending
+    case .progress: lhs.progress > rhs.progress
+    case .size: (lhs.size ?? 0) > (rhs.size ?? 0)
+    case .speed: (lhs.rxRate ?? 0) > (rhs.rxRate ?? 0)
+    }
+  }
 }
 
 struct DownloadManagerView: View {
@@ -14,6 +45,7 @@ struct DownloadManagerView: View {
   @State private var selection: Int?
   @State private var search = ""
   @State private var filter: DownloadFilter = .all
+  @State private var sort: DownloadSort = .recent
   @State private var showAddURL = false
   @State private var pendingRemoval: DownloadTask?
 
@@ -21,7 +53,7 @@ struct DownloadManagerView: View {
     NavigationSplitView {
       VStack(spacing: 0) {
         Picker("Filtro", selection: $filter) {
-          ForEach(DownloadFilter.allCases) { Text($0.rawValue).tag($0) }
+          ForEach(DownloadFilter.allCases) { Text($0.title).tag($0) }
         }
         .pickerStyle(.segmented)
         .padding(10)
@@ -32,6 +64,9 @@ struct DownloadManagerView: View {
             .contextMenu { taskMenu(task) }
         }
         .searchable(text: $search, prompt: "Cerca download")
+        .onDeleteCommand {
+          if let task = selectedTask { pendingRemoval = task }
+        }
         .overlay {
           if filteredTasks.isEmpty {
             ContentUnavailableView(
@@ -61,6 +96,15 @@ struct DownloadManagerView: View {
     .navigationTitle("Download")
     .toolbar {
       ToolbarItemGroup {
+        Menu {
+          Picker("Ordina per", selection: $sort) {
+            ForEach(DownloadSort.allCases) { Text($0.title).tag($0) }
+          }
+          .pickerStyle(.inline)
+        } label: {
+          Label("Ordina", systemImage: "arrow.up.arrow.down")
+        }
+        .help("Ordina i download")
         Button {
           showAddURL = true
         } label: {
@@ -122,6 +166,7 @@ struct DownloadManagerView: View {
         search.isEmpty || (task.name ?? "").localizedCaseInsensitiveContains(search)
       return matchesFilter && matchesSearch
     }
+    .sorted(by: sort.areInOrder)
   }
 
   @ViewBuilder
@@ -156,7 +201,7 @@ private struct DownloadListRow: View {
       ProgressView(value: task.progress)
         .tint(statusColor)
       HStack {
-        Text(task.status ?? "sconosciuto")
+        Text(DownloadPresentation.statusLabel(task))
         Spacer()
         if task.isActive { Text("↓ \(Format.bytes(task.rxRate ?? 0))/s") }
       }
@@ -235,9 +280,11 @@ private struct DownloadDetailView: View {
         if task.hasFailed {
           Button("Riprova") { Task { await model.retry(task) } }
         }
-        Menu("Priorità: \(task.ioPriority ?? "normale")") {
+        Menu("Priorità: \(DownloadPresentation.priorityLabel(task.ioPriority))") {
           ForEach(["low", "normal", "high"], id: \.self) { priority in
-            Button(priority) { Task { await model.setPriority(priority, for: task) } }
+            Button(DownloadPresentation.priorityLabel(priority)) {
+              Task { await model.setPriority(priority, for: task) }
+            }
           }
         }
         Spacer()
@@ -263,12 +310,14 @@ private struct DownloadDetailView: View {
         Text(Format.bytes(file.size ?? 0))
           .font(.caption.monospacedDigit())
           .foregroundStyle(.secondary)
-        Menu(file.priority ?? "normal") {
+        Menu(DownloadPresentation.priorityLabel(file.priority)) {
           ForEach(["no_dl", "low", "normal", "high"], id: \.self) { priority in
-            Button(priority) { Task { await model.setFilePriority(priority, file: file) } }
+            Button(DownloadPresentation.priorityLabel(priority)) {
+              Task { await model.setFilePriority(priority, file: file) }
+            }
           }
         }
-        .frame(width: 90)
+        .frame(width: 110)
       }
     }
     .overlay {

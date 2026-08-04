@@ -618,7 +618,7 @@ private struct TaskRow: View {
   }
 
   private var metaText: String {
-    var parts = [statoItaliano]
+    var parts = [DownloadPresentation.statusLabel(task)]
     if task.status == "downloading" {
       if let rate = task.rxRate, rate > 0 {
         parts.append("\(Format.bytes(rate))/s")
@@ -631,22 +631,6 @@ private struct TaskRow: View {
       parts.append(Format.bytes(size))
     }
     return parts.joined(separator: " · ")
-  }
-
-  private var statoItaliano: String {
-    switch task.status {
-    case "downloading": "in download"
-    case "done": "completato"
-    case "stopped": "in pausa"
-    case "seeding": "seeding"
-    case "error": task.error.map { "errore: \($0)" } ?? "errore"
-    case "queued": "in coda"
-    case "checking": "verifica"
-    case "extracting": "estrazione"
-    case "starting": "avvio"
-    case "retry": "nuovo tentativo"
-    default: task.status ?? "-"
-    }
   }
 }
 
