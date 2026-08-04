@@ -76,15 +76,20 @@ REVOKED_CONFIG="$REVOKED_DIRECTORY/config.json"
 mkdir -p "$REVOKED_DIRECTORY"
 REVOKED_REQUESTS="$SMOKE_ROOT/revoked-token.requests"
 REVOKED_PORT_FILE="$SMOKE_ROOT/revoked-token.port"
+FIXTURE_LOG="$SMOKE_ROOT/revoked-token.server.log"
 /usr/bin/env python3 Scripts/Fixtures/revoked-token-server.py 0 "$REVOKED_REQUESTS" \
-  "$REVOKED_PORT_FILE" &
+  "$REVOKED_PORT_FILE" > "$FIXTURE_LOG" 2>&1 &
 SERVER_PID=$!
-for _ in {1..50}; do
+# Attesa generosa: il cold start di python3 sul runner CI può superare i 5s.
+# Se il processo muore prima di scrivere la porta, usciamo subito col suo log.
+for _ in {1..300}; do
   [[ -s "$REVOKED_PORT_FILE" ]] && break
+  kill -0 "$SERVER_PID" 2>/dev/null || break
   sleep 0.1
 done
 if [[ ! -s "$REVOKED_PORT_FILE" ]]; then
   echo "Il server fixture del token revocato non si è avviato" >&2
+  [[ -s "$FIXTURE_LOG" ]] && cat "$FIXTURE_LOG" >&2
   exit 1
 fi
 REVOKED_PORT=$(<"$REVOKED_PORT_FILE")
