@@ -13,9 +13,15 @@ struct FileManagerView: View {
   @State private var showShareLinks = false
 
   enum TransferMode: String, Identifiable {
-    case copy = "Copia"
-    case move = "Sposta"
+    case copy, move
     var id: String { rawValue }
+
+    var title: String {
+      switch self {
+      case .copy: NSLocalizedString("Copia", comment: "Transfer mode")
+      case .move: NSLocalizedString("Sposta", comment: "Transfer mode")
+      }
+    }
   }
 
   var body: some View {
@@ -38,6 +44,16 @@ struct FileManagerView: View {
         } else if model.entries.isEmpty {
           ContentUnavailableView("Cartella vuota", systemImage: "folder")
         }
+      }
+      .onDeleteCommand {
+        if !selection.isEmpty { showDelete = true }
+      }
+      .onKeyPress(.return) {
+        guard selection.count == 1, let entry = selectedEntries.first, entry.isDirectory else {
+          return .ignored
+        }
+        Task { await model.enter(entry) }
+        return .handled
       }
       operationFooter
     }
@@ -62,7 +78,7 @@ struct FileManagerView: View {
       }
     }
     .sheet(item: $transferMode) { mode in
-      DestinationPickerView(model: model, mode: mode.rawValue) { destination, conflictMode in
+      DestinationPickerView(model: model, mode: mode.title) { destination, conflictMode in
         let entries = selectedEntries
         runOperation {
           await model.transferEntries(
@@ -161,6 +177,7 @@ struct FileManagerView: View {
       } label: {
         Label("Nuova cartella", systemImage: "folder.badge.plus")
       }
+      .keyboardShortcut("n", modifiers: .command)
       Menu {
         Button("Non sovrascrivere") {
           runOperation { await model.chooseAndUploadFiles(conflictMode: .missing) }

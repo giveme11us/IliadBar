@@ -14,3 +14,8 @@ versionamento semantico.
 - Widget connessione/download, CLI JSON, diagnostica redatta e localizzazione
   italiana/inglese.
 - Icona IliadBar custom, aggiornamenti Sparkle e pipeline di distribuzione.
+- Ordinamento dei download; stati e priorità dei task tradotti ovunque tramite
+  un layer di presentazione condiviso.
+- Notifiche download configurabili per evento (avvio, completamento, errore).
+- Scorciatoie da tastiera: ⌫ rimuove nel download manager; ⌘N, ⌫ e Invio nel
+  file manager.
