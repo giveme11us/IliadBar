@@ -71,6 +71,18 @@ final class IliadboxKitTests: XCTestCase {
     XCTAssertTrue(config.boxes.isEmpty)
   }
 
+  func testPreferencesDecodeDefaultsGranularNotificationFlags() throws {
+    let data = Data(
+      #"{"idleRefreshSeconds":30,"activeRefreshSeconds":5,"notificationsEnabled":false}"#.utf8)
+    let preferences = try JSONDecoder().decode(AppPreferences.self, from: data)
+    XCTAssertEqual(preferences.idleRefreshSeconds, 30)
+    XCTAssertEqual(preferences.activeRefreshSeconds, 5)
+    XCTAssertFalse(preferences.notificationsEnabled)
+    XCTAssertTrue(preferences.notifyOnStart)
+    XCTAssertTrue(preferences.notifyOnCompletion)
+    XCTAssertTrue(preferences.notifyOnFailure)
+  }
+
   func testRuntimeConfigDecodesLegacyFileWithoutBoxID() throws {
     let data = Data(#"{"baseURL":"http://box/api/v15/","appToken":"secret"}"#.utf8)
     let config = try JSONDecoder().decode(IbxConfig.self, from: data)

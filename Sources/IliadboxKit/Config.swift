@@ -71,15 +71,40 @@ public struct AppPreferences: Codable, Equatable, Sendable {
   public var idleRefreshSeconds: Int
   public var activeRefreshSeconds: Int
   public var notificationsEnabled: Bool
+  public var notifyOnStart: Bool
+  public var notifyOnCompletion: Bool
+  public var notifyOnFailure: Bool
 
   public init(
     idleRefreshSeconds: Int = 20,
     activeRefreshSeconds: Int = 3,
-    notificationsEnabled: Bool = true
+    notificationsEnabled: Bool = true,
+    notifyOnStart: Bool = true,
+    notifyOnCompletion: Bool = true,
+    notifyOnFailure: Bool = true
   ) {
     self.idleRefreshSeconds = idleRefreshSeconds
     self.activeRefreshSeconds = activeRefreshSeconds
     self.notificationsEnabled = notificationsEnabled
+    self.notifyOnStart = notifyOnStart
+    self.notifyOnCompletion = notifyOnCompletion
+    self.notifyOnFailure = notifyOnFailure
+  }
+
+  enum CodingKeys: String, CodingKey {
+    case idleRefreshSeconds, activeRefreshSeconds, notificationsEnabled
+    case notifyOnStart, notifyOnCompletion, notifyOnFailure
+  }
+
+  public init(from decoder: Decoder) throws {
+    let values = try decoder.container(keyedBy: CodingKeys.self)
+    idleRefreshSeconds = try values.decodeIfPresent(Int.self, forKey: .idleRefreshSeconds) ?? 20
+    activeRefreshSeconds = try values.decodeIfPresent(Int.self, forKey: .activeRefreshSeconds) ?? 3
+    notificationsEnabled =
+      try values.decodeIfPresent(Bool.self, forKey: .notificationsEnabled) ?? true
+    notifyOnStart = try values.decodeIfPresent(Bool.self, forKey: .notifyOnStart) ?? true
+    notifyOnCompletion = try values.decodeIfPresent(Bool.self, forKey: .notifyOnCompletion) ?? true
+    notifyOnFailure = try values.decodeIfPresent(Bool.self, forKey: .notifyOnFailure) ?? true
   }
 }
 

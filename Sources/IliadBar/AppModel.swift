@@ -295,11 +295,12 @@ final class AppModel: ObservableObject {
       // baseline prevents the following refresh from emitting it a second time.
       previousTaskStatuses[id] = "starting"
       statusLine = nil
-      notify(title: appString("Download avviato sulla iliadbox"), body: name)
+      notifyDownloadEvent(.started, title: appString("Download avviato sulla iliadbox"), body: name)
       await refresh()
     } catch {
       statusLine = error.localizedDescription
-      notify(title: appString("Errore download"), body: error.localizedDescription)
+      notifyDownloadEvent(
+        .failed, title: appString("Errore download"), body: error.localizedDescription)
     }
   }
 
@@ -1278,15 +1279,35 @@ final class AppModel: ObservableObject {
       guard let task = byID[event.taskID] else { continue }
       switch event.kind {
       case .started:
-        notify(
+        notifyDownloadEvent(
+          .started,
           title: appString("Download avviato sulla iliadbox"),
           body: task.name ?? "Download \(task.id)")
       case .completed:
-        notify(title: appString("Download completato"), body: task.name ?? "Download \(task.id)")
+        notifyDownloadEvent(
+          .completed,
+          title: appString("Download completato"),
+          body: task.name ?? "Download \(task.id)")
       case .failed:
-        notify(title: appString("Download non riuscito"), body: task.name ?? "Download \(task.id)")
+        notifyDownloadEvent(
+          .failed,
+          title: appString("Download non riuscito"),
+          body: task.name ?? "Download \(task.id)")
       }
     }
+  }
+
+  /// Applica la policy per-evento delle notifiche download; il master toggle
+  /// resta verificato da notify().
+  private func notifyDownloadEvent(_ kind: DownloadTransition.Kind, title: String, body: String) {
+    let allowed =
+      switch kind {
+      case .started: preferences.notifyOnStart
+      case .completed: preferences.notifyOnCompletion
+      case .failed: preferences.notifyOnFailure
+      }
+    guard allowed else { return }
+    notify(title: title, body: body)
   }
 
   private func requestNotificationPermission() {

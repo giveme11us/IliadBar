@@ -232,7 +232,31 @@ private struct NotificationSettingsView: View {
             get: { model.preferences.notificationsEnabled },
             set: { value in model.updatePreferences { $0.notificationsEnabled = value } }
           ))
-        Text("Mostra gli avvii, i completamenti e gli errori dei download.")
+        Toggle(
+          "Avvio di un download",
+          isOn: Binding(
+            get: { model.preferences.notifyOnStart },
+            set: { value in model.updatePreferences { $0.notifyOnStart = value } }
+          )
+        )
+        .disabled(!model.preferences.notificationsEnabled)
+        Toggle(
+          "Completamento di un download",
+          isOn: Binding(
+            get: { model.preferences.notifyOnCompletion },
+            set: { value in model.updatePreferences { $0.notifyOnCompletion = value } }
+          )
+        )
+        .disabled(!model.preferences.notificationsEnabled)
+        Toggle(
+          "Download non riuscito",
+          isOn: Binding(
+            get: { model.preferences.notifyOnFailure },
+            set: { value in model.updatePreferences { $0.notifyOnFailure = value } }
+          )
+        )
+        .disabled(!model.preferences.notificationsEnabled)
+        Text("Scegli quali eventi dei download generano una notifica.")
           .font(.footnote)
           .foregroundStyle(.secondary)
       }
