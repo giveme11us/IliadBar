@@ -97,17 +97,18 @@ struct PanelView: View {
   }
 
   private func switcherMeter(for candidate: PanelTab) -> some View {
-    let value: Double = switch candidate {
-    case .overview:
-      model.availability.isOnline ? 1 : 0.08
-    case .download:
-      model.activeTasks.isEmpty
-        ? 0.08 : model.activeTasks.map(\.progress).reduce(0, +) / Double(model.activeTasks.count)
-    case .file:
-      model.storageDisks.isEmpty ? 0.08 : 0.7
-    case .box:
-      model.connection?.isUp == true ? 1 : 0.08
-    }
+    let value: Double =
+      switch candidate {
+      case .overview:
+        model.availability.isOnline ? 1 : 0.08
+      case .download:
+        model.activeTasks.isEmpty
+          ? 0.08 : model.activeTasks.map(\.progress).reduce(0, +) / Double(model.activeTasks.count)
+      case .file:
+        model.storageDisks.isEmpty ? 0.08 : 0.7
+      case .box:
+        model.connection?.isUp == true ? 1 : 0.08
+      }
     return GeometryReader { geometry in
       ZStack(alignment: .leading) {
         Capsule().fill(tab == candidate ? Color.white.opacity(0.25) : Color.primary.opacity(0.12))
