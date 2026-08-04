@@ -33,6 +33,7 @@ Struttura del sidebar unificato:
 
 ```
 IliadBar (finestra unica)
+├─ Home
 ├─ Download
 ├─ File
 ├─ RETE
@@ -46,6 +47,13 @@ IliadBar (finestra unica)
    ├─ Chiamate e contatti
    └─ VPN e TV
 ```
+
+**Home** è la sezione di atterraggio: l'apertura generica della finestra parte
+da qui. Aggrega solo dati già esistenti — stato connessione e traffico live,
+download attivi in sintesi, storage in sintesi, box attiva e **stato dei
+permessi** (è il "punto unico" del requisito §3) — e ogni blocco porta alla
+propria sezione. Non introduce capability nuove: dà una casa nella finestra al
+quadro d'insieme che oggi vive solo nel pannello.
 
 Requisiti:
 
@@ -103,7 +111,7 @@ Requisiti:
 - Upload lineare: un solo "Carica…"; la policy di conflitto viene chiesta solo
   quando il conflitto si verifica.
 - Drag & drop dal Finder per upload; drag di `.torrent` sulla sezione Download.
-  (Classificato rifinitura: è il modo macOS di fare ciò che l'app già fa.)
+  (Confermato in ambito: è il modo macOS di fare ciò che l'app già fa.)
 
 ### Sezione Rete
 - DHCP e NAT: picker del dispositivo dalla lista LAN con IP/MAC precompilati,
@@ -148,8 +156,7 @@ chiude tutti i dettagli della propria area, non ci si torna.
 - CI verde (test + audit + smoke) a ogni passata; screenshot prima/dopo per
   ogni superficie toccata come evidenza di revisione.
 
-## 8. Questioni aperte
+## 8. Decisioni prese
 
-- Drag & drop: confermato in ambito come rifinitura? (§4 File)
-- La sezione attiva di default all'apertura della finestra: ultima usata o
-  sempre Download?
+- Drag & drop: **in ambito** come rifinitura (§4 File). — Ivan, 2026-08-04
+- Apertura generica della finestra: **sezione Home** (§2). — Ivan, 2026-08-04
