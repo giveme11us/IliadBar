@@ -363,3 +363,14 @@
 "La box non indica la cartella di questo download" = "La box non indica la cartella di questo download";
 "Mappa dei blocchi scaricati" = "Mappa dei blocchi scaricati";
 "Mostra nei File" = "Mostra nei File";
+
+/* Tabella File, upload e trascinamento */
+"Carica…" = "Carica…";
+"Carica file nella cartella corrente" = "Carica file nella cartella corrente";
+"Alcuni file esistono già in questa cartella" = "Alcuni file esistono già in questa cartella";
+"Sostituisci" = "Sostituisci";
+"Riprendi i file parziali" = "Riprendi i file parziali";
+"Salta quelli esistenti" = "Salta quelli esistenti";
+"Nessun file da caricare: esistono già tutti" = "Nessun file da caricare: esistono già tutti";
+"Trascina un file .torrent o .nzb" = "Trascina un file .torrent o .nzb";
+"Modifica" = "Modifica";

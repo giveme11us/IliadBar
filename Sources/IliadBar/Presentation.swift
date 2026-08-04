@@ -121,3 +121,10 @@ enum NetworkPresentation {
     }
   }
 }
+
+extension FsEntry {
+  /// KeyPathComparator richiede valori non opzionali: le colonne ordinabili
+  /// della tabella File passano da qui.
+  var sortableSize: Int64 { size ?? 0 }
+  var sortableModification: Int64 { modification ?? 0 }
+}

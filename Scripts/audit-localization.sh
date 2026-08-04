@@ -43,6 +43,7 @@ perl -nle '
   }
 ' "${LOCALIZATION_SOURCES[@]}" \
   | grep -vF '\(' \
+  | grep -v '^$' \
   | grep -vE '^[a-z0-9]+(\.[a-z0-9]+)+$' \
   | grep -vE "$NON_UI_LITERALS" \
   | sort -u > "$AUDIT_DIR/swiftui-literals.keys"

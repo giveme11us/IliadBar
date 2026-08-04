@@ -14,6 +14,18 @@ struct Crumb: Identifiable, Equatable {
   var id: String { pathB64 }
 }
 
+/// Caricamento in attesa di una decisione sui nomi già presenti a destinazione.
+struct PendingUpload: Equatable {
+  let urls: [URL]
+  let conflicting: [String]
+}
+
+enum UploadResolution {
+  case replace
+  case resume
+  case skipExisting
+}
+
 /// Esito visibile di un'azione utente, indipendente dalla finestra in cui
 /// l'azione è nata.
 struct TransientFeedback: Equatable, Identifiable {
@@ -73,6 +85,7 @@ final class AppModel: ObservableObject {
   @Published var shareLinks: [ShareLink] = []
   @Published var fileOperationStatus: String?
   @Published var uploadProgress: Double?
+  @Published var pendingUpload: PendingUpload?
   @Published private(set) var fileOperationCanCancel = false
   // Rete locale
   @Published var lanInterfaces: [LanInterface] = []
@@ -339,18 +352,34 @@ final class AppModel: ObservableObject {
     panel.allowedContentTypes = [
       .init(filenameExtension: "torrent")!, .init(filenameExtension: "nzb")!,
     ]
-    panel.allowsMultipleSelection = false
+    panel.allowsMultipleSelection = true
     panel.canChooseDirectories = false
-    guard panel.runModal() == .OK, let url = panel.url else { return }
-    do {
-      statusLine = appString("Aggiungo %@…", url.lastPathComponent)
-      let data = try Data(contentsOf: url)
-      _ = try await client.addDownloadFile(data: data, filename: url.lastPathComponent)
-      statusLine = nil
-      await refresh()
-    } catch {
-      reportError(error)
+    guard panel.runModal() == .OK else { return }
+    await addDownloadFiles(panel.urls)
+  }
+
+  /// Ingresso comune di scelta manuale e trascinamento: accetta solo torrent
+  /// e NZB, ignorando in silenzio il resto di un trascinamento misto.
+  func addDownloadFiles(_ urls: [URL]) async {
+    let accepted = urls.filter { ["torrent", "nzb"].contains($0.pathExtension.lowercased()) }
+    guard !accepted.isEmpty else {
+      if !urls.isEmpty {
+        emitFeedback(appString("Trascina un file .torrent o .nzb"), style: .info)
+      }
+      return
     }
+    for url in accepted {
+      do {
+        statusLine = appString("Aggiungo %@…", url.lastPathComponent)
+        let data = try Data(contentsOf: url)
+        _ = try await client.addDownloadFile(data: data, filename: url.lastPathComponent)
+        statusLine = nil
+      } catch {
+        reportError(error)
+        break
+      }
+    }
+    await refresh()
   }
 
   func togglePause(_ task: DownloadTask) async {
@@ -504,6 +533,16 @@ final class AppModel: ObservableObject {
     }
   }
 
+  /// Risale a una tappa qualsiasi del percorso: le briciole sono un
+  /// controllo di navigazione, non una didascalia.
+  func goTo(crumbIndex index: Int) async {
+    guard crumbs.indices.contains(index), index != crumbs.count - 1 else { return }
+    crumbs = Array(crumbs.prefix(index + 1))
+    if let current = crumbs.last {
+      await loadEntries(pathB64: current.pathB64)
+    }
+  }
+
   func reloadFiles() async {
     if let current = crumbs.last {
       await loadEntries(pathB64: current.pathB64)
@@ -622,19 +661,56 @@ final class AppModel: ObservableObject {
     }
   }
 
-  func chooseAndUploadFiles(conflictMode: UploadConflictMode = .missing) async {
-    guard let destination = crumbs.last?.pathB64 else { return }
+  /// Sceglie i file e carica: la politica sui conflitti viene chiesta solo se
+  /// un conflitto esiste davvero (PRD-UX §4), non prima di sapere se ce n'è uno.
+  func chooseFilesToUpload() async {
     let panel = NSOpenPanel()
     panel.allowsMultipleSelection = true
     panel.canChooseDirectories = false
     guard panel.runModal() == .OK else { return }
+    await upload(panel.urls)
+  }
+
+  /// Ingresso comune di scelta manuale e trascinamento dal Finder.
+  func upload(_ urls: [URL]) async {
+    let candidates = urls.filter { !$0.hasDirectoryPath }
+    guard !candidates.isEmpty else { return }
+    let existing = Set(entries.filter { !$0.isDirectory }.map(\.name))
+    let conflicting = candidates.map(\.lastPathComponent).filter(existing.contains)
+    if conflicting.isEmpty {
+      await performUpload(candidates, conflictMode: .missing)
+    } else {
+      pendingUpload = PendingUpload(urls: candidates, conflicting: conflicting)
+    }
+  }
+
+  func resolvePendingUpload(_ resolution: UploadResolution) async {
+    guard let pending = pendingUpload else { return }
+    pendingUpload = nil
+    switch resolution {
+    case .replace:
+      await performUpload(pending.urls, conflictMode: .overwrite)
+    case .resume:
+      await performUpload(pending.urls, conflictMode: .resume)
+    case .skipExisting:
+      let remaining = pending.urls.filter { !pending.conflicting.contains($0.lastPathComponent) }
+      if remaining.isEmpty {
+        emitFeedback(appString("Nessun file da caricare: esistono già tutti"), style: .info)
+      } else {
+        await performUpload(remaining, conflictMode: .missing)
+      }
+    }
+  }
+
+  private func performUpload(_ urls: [URL], conflictMode: UploadConflictMode) async {
+    guard let destination = crumbs.last?.pathB64 else { return }
     fileOperationCanCancel = true
     defer {
       uploadProgress = nil
       fileOperationStatus = nil
       fileOperationCanCancel = false
     }
-    for url in panel.urls {
+    for url in urls {
       do {
         try Task.checkCancellation()
         fileOperationStatus = appString("Carico %@…", url.lastPathComponent)

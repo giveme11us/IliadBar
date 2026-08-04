@@ -49,6 +49,7 @@ struct DownloadManagerView: View {
   @State private var sort: DownloadSort = .recent
   @State private var showAddURL = false
   @State private var pendingRemoval: DownloadTask?
+  @State private var dropTargeted = false
 
   var body: some View {
     // HSplitView e non NavigationSplitView: il sidebar della finestra è uno
@@ -98,6 +99,21 @@ struct DownloadManagerView: View {
         }
       }
       .frame(minWidth: 380, maxWidth: .infinity)
+    }
+    // Trascinare un .torrent qui equivale ad "Apri torrent o NZB".
+    .dropDestination(for: URL.self) { urls, _ in
+      Task { await model.addDownloadFiles(urls) }
+      return true
+    } isTargeted: {
+      dropTargeted = $0
+    }
+    .overlay {
+      if dropTargeted {
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+          .strokeBorder(IliadPalette.blue, style: StrokeStyle(lineWidth: 2, dash: [6]))
+          .padding(4)
+          .allowsHitTesting(false)
+      }
     }
     .navigationTitle("Download")
     .toolbar {

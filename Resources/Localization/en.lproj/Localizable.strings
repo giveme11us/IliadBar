@@ -394,3 +394,14 @@
 "La box non indica la cartella di questo download" = "The box does not report a folder for this download";
 "Mappa dei blocchi scaricati" = "Map of downloaded pieces";
 "Mostra nei File" = "Show in Files";
+
+/* Files table, upload and drag & drop */
+"Carica…" = "Upload…";
+"Carica file nella cartella corrente" = "Upload files to the current folder";
+"Alcuni file esistono già in questa cartella" = "Some files already exist in this folder";
+"Sostituisci" = "Replace";
+"Riprendi i file parziali" = "Resume partial files";
+"Salta quelli esistenti" = "Skip the existing ones";
+"Nessun file da caricare: esistono già tutti" = "Nothing to upload: they all already exist";
+"Trascina un file .torrent o .nzb" = "Drag a .torrent or .nzb file";
+"Modifica" = "Modified";

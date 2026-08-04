@@ -1,4 +1,5 @@
 import AppKit
+import IliadBarDesign
 import IliadboxKit
 import SwiftUI
 
@@ -11,6 +12,8 @@ struct FileManagerView: View {
   @State private var transferMode: TransferMode?
   @State private var activeOperationTask: Task<Void, Never>?
   @State private var showShareLinks = false
+  @State private var sortOrder = [KeyPathComparator(\FsEntry.name)]
+  @State private var dropTargeted = false
 
   enum TransferMode: String, Identifiable {
     case copy, move
@@ -30,31 +33,7 @@ struct FileManagerView: View {
       Divider()
       browserHeader
       Divider()
-      List(model.entries, selection: $selection) { entry in
-        FileManagerRow(entry: entry)
-          .tag(entry.id)
-          .onTapGesture(count: 2) {
-            if entry.isDirectory { Task { await model.enter(entry) } }
-          }
-          .contextMenu { contextMenu(entry) }
-      }
-      .overlay {
-        if model.filesLoading {
-          ProgressView()
-        } else if model.entries.isEmpty {
-          ContentUnavailableView("Cartella vuota", systemImage: "folder")
-        }
-      }
-      .onDeleteCommand {
-        if !selection.isEmpty { showDelete = true }
-      }
-      .onKeyPress(.return) {
-        guard selection.count == 1, let entry = selectedEntries.first, entry.isDirectory else {
-          return .ignored
-        }
-        Task { await model.enter(entry) }
-        return .handled
-      }
+      entriesTable
       operationFooter
     }
     .navigationTitle("File")
@@ -93,6 +72,25 @@ struct FileManagerView: View {
       ShareLinksView(model: model)
     }
     .confirmationDialog(
+      "Alcuni file esistono già in questa cartella",
+      isPresented: Binding(
+        get: { model.pendingUpload != nil },
+        set: { if !$0 { model.pendingUpload = nil } }
+      ),
+      titleVisibility: .visible
+    ) {
+      Button("Sostituisci") { runOperation { await model.resolvePendingUpload(.replace) } }
+      Button("Riprendi i file parziali") {
+        runOperation { await model.resolvePendingUpload(.resume) }
+      }
+      Button("Salta quelli esistenti") {
+        runOperation { await model.resolvePendingUpload(.skipExisting) }
+      }
+      Button("Annulla", role: .cancel) { model.pendingUpload = nil }
+    } message: {
+      Text(conflictMessage)
+    }
+    .confirmationDialog(
       "Eliminare \(selectedEntries.count) elementi dalla iliadbox?",
       isPresented: $showDelete,
       titleVisibility: .visible
@@ -110,6 +108,96 @@ struct FileManagerView: View {
 
   private var selectedEntries: [FsEntry] {
     model.entries.filter { selection.contains($0.id) }
+  }
+
+  /// Le cartelle restano in testa qualunque sia l'ordinamento scelto: è
+  /// l'unica gerarchia che l'utente si aspetta sempre.
+  private var sortedEntries: [FsEntry] {
+    let sorted = model.entries.sorted(using: sortOrder)
+    return sorted.filter(\.isDirectory) + sorted.filter { !$0.isDirectory }
+  }
+
+  private var entriesTable: some View {
+    Table(sortedEntries, selection: $selection, sortOrder: $sortOrder) {
+      TableColumn("Nome", value: \.name) { entry in
+        HStack(spacing: 8) {
+          Image(systemName: entry.isDirectory ? "folder.fill" : icon(for: entry))
+            .foregroundStyle(entry.isDirectory ? IliadPalette.blue : Color.secondary)
+            .frame(width: 18)
+          Text(entry.name).lineLimit(1).truncationMode(.middle)
+        }
+      }
+      TableColumn("Dimensione", value: \.sortableSize) { entry in
+        Text(entry.isDirectory ? "—" : Format.bytes(entry.size ?? 0))
+          .font(.callout.monospacedDigit())
+          .foregroundStyle(.secondary)
+      }
+      .width(min: 90, ideal: 110)
+      TableColumn("Modifica", value: \.sortableModification) { entry in
+        if let modification = entry.modification, modification > 0 {
+          Text(Date(timeIntervalSince1970: TimeInterval(modification)), style: .date)
+            .font(.callout)
+            .foregroundStyle(.secondary)
+        } else {
+          Text("—").foregroundStyle(.tertiary)
+        }
+      }
+      .width(min: 110, ideal: 140)
+    }
+    .contextMenu(forSelectionType: FsEntry.ID.self) { ids in
+      if let entry = model.entries.first(where: { ids.first == $0.id }) {
+        contextMenu(entry)
+      }
+    } primaryAction: { ids in
+      guard let entry = model.entries.first(where: { ids.first == $0.id }), entry.isDirectory
+      else { return }
+      Task { await model.enter(entry) }
+    }
+    .overlay {
+      if model.filesLoading {
+        ProgressView()
+      } else if model.entries.isEmpty {
+        ContentUnavailableView("Cartella vuota", systemImage: "folder")
+      }
+    }
+    .onDeleteCommand {
+      if !selection.isEmpty { showDelete = true }
+    }
+    .onKeyPress(.return) {
+      guard selection.count == 1, let entry = selectedEntries.first, entry.isDirectory else {
+        return .ignored
+      }
+      Task { await model.enter(entry) }
+      return .handled
+    }
+    // Trascinare dal Finder è il modo macOS di fare ciò che il bottone
+    // "Carica…" già fa.
+    .dropDestination(for: URL.self) { urls, _ in
+      runOperation { await model.upload(urls) }
+      return true
+    } isTargeted: {
+      dropTargeted = $0
+    }
+    .overlay {
+      if dropTargeted {
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+          .strokeBorder(IliadPalette.blue, style: StrokeStyle(lineWidth: 2, dash: [6]))
+          .padding(4)
+          .allowsHitTesting(false)
+      }
+    }
+  }
+
+  private func icon(for entry: FsEntry) -> String {
+    switch (entry.name as NSString).pathExtension.lowercased() {
+    case "mkv", "mp4", "mov", "avi": "film"
+    case "jpg", "jpeg", "png", "heic", "webp": "photo"
+    case "mp3", "flac", "wav", "aac": "music.note"
+    case "zip", "rar", "7z", "tar", "gz": "archivebox"
+    case "torrent": "point.3.connected.trianglepath.dotted"
+    case "pdf", "epub": "book"
+    default: "doc"
+    }
   }
 
   private var storageStrip: some View {
@@ -144,11 +232,26 @@ struct FileManagerView: View {
       .disabled(model.crumbs.count <= 1)
       .accessibilityLabel("Indietro")
       HStack(spacing: 3) {
-        ForEach(Array(model.crumbs.suffix(3).enumerated()), id: \.element.id) { index, crumb in
-          if index > 0 {
+        if model.crumbs.count > 4 {
+          Text("…").foregroundStyle(.tertiary)
+          Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
+        }
+        // Le briciole sono bottoni: si risale con un click, non solo con
+        // il pulsante Indietro.
+        ForEach(Array(model.crumbs.enumerated().suffix(4)), id: \.element.id) { index, crumb in
+          if index > max(0, model.crumbs.count - 4) {
             Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
           }
-          Text(crumb.name).lineLimit(1)
+          Button {
+            Task { await model.goTo(crumbIndex: index) }
+          } label: {
+            Text(crumb.name)
+              .lineLimit(1)
+              .foregroundStyle(
+                index == model.crumbs.count - 1 ? Color.primary : Color.secondary)
+          }
+          .buttonStyle(.plain)
+          .disabled(index == model.crumbs.count - 1)
         }
       }
       .font(.callout)
@@ -177,19 +280,12 @@ struct FileManagerView: View {
         Label("Nuova cartella", systemImage: "folder.badge.plus")
       }
       .keyboardShortcut("n", modifiers: .command)
-      Menu {
-        Button("Non sovrascrivere") {
-          runOperation { await model.chooseAndUploadFiles(conflictMode: .missing) }
-        }
-        Button("Sovrascrivi") {
-          runOperation { await model.chooseAndUploadFiles(conflictMode: .overwrite) }
-        }
-        Button("Riprendi file parziale") {
-          runOperation { await model.chooseAndUploadFiles(conflictMode: .resume) }
-        }
+      Button {
+        runOperation { await model.chooseFilesToUpload() }
       } label: {
-        Label("Carica", systemImage: "arrow.up.doc")
+        Label("Carica…", systemImage: "arrow.up.doc")
       }
+      .help("Carica file nella cartella corrente")
       Button {
         showShareLinks = true
       } label: {
@@ -260,6 +356,12 @@ struct FileManagerView: View {
       selection = [entry.id]
       showDelete = true
     }
+  }
+
+  private var conflictMessage: String {
+    let names = model.pendingUpload?.conflicting ?? []
+    return names.prefix(5).joined(separator: ", ")
+      + (names.count > 5 ? " (+\(names.count - 5))" : "")
   }
 
   private func storageSummary(_ disk: StorageDisk) -> String {
@@ -337,41 +439,6 @@ private struct ShareLinksView: View {
       Button("Annulla", role: .cancel) { pendingRevocation = nil }
     } message: {
       Text("Chi possiede l’URL non potrà più accedere al file.")
-    }
-  }
-}
-
-private struct FileManagerRow: View {
-  let entry: FsEntry
-
-  var body: some View {
-    HStack(spacing: 10) {
-      Image(systemName: entry.isDirectory ? "folder.fill" : icon)
-        .foregroundStyle(entry.isDirectory ? Color.accentColor : Color.secondary)
-        .frame(width: 20)
-      VStack(alignment: .leading, spacing: 2) {
-        Text(entry.name).lineLimit(1)
-        if let modification = entry.modification {
-          Text(Date(timeIntervalSince1970: TimeInterval(modification)), style: .date)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-      }
-      Spacer()
-      if !entry.isDirectory, let size = entry.size {
-        Text(Format.bytes(size)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-      }
-    }
-    .padding(.vertical, 3)
-  }
-
-  private var icon: String {
-    switch (entry.name as NSString).pathExtension.lowercased() {
-    case "mkv", "mp4", "mov": "film"
-    case "jpg", "jpeg", "png", "heic": "photo"
-    case "mp3", "flac", "wav": "music.note"
-    case "zip", "rar", "7z": "archivebox"
-    default: "doc"
     }
   }
 }
