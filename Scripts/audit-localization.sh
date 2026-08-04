@@ -15,10 +15,13 @@ jq -r 'keys[]' "$AUDIT_DIR/extracted.json" | sort > "$AUDIT_DIR/extracted.keys"
 # Picker inside Menu/Toolbar builders). Add literal-only keys from the common
 # user-visible initializers; interpolated strings remain handled by the Apple
 # extractor so their positional placeholders are preserved correctly.
-rg --pcre2 --no-filename -o --replace '$1' \
-  '(?:Text|Label|Button|Toggle|Picker|Menu|navigationTitle|accessibilityLabel|ContentUnavailableView|TextField|confirmationDialog|appString|fbxLocalized|NSLocalizedString)\(\s*"((?:[^"\\]|\\.)*)"' \
-  "${LOCALIZATION_SOURCES[@]}" \
-  | rg -v '\\\(' \
+# perl instead of ripgrep: the CI runner does not ship rg.
+perl -nle '
+  while (/(?:Text|Label|Button|Toggle|Picker|Menu|navigationTitle|accessibilityLabel|ContentUnavailableView|TextField|confirmationDialog|appString|fbxLocalized|NSLocalizedString)\(\s*"((?:[^"\\]|\\.)*)"/g) {
+    print $1;
+  }
+' "${LOCALIZATION_SOURCES[@]}" \
+  | grep -vF '\(' \
   | sort -u > "$AUDIT_DIR/swiftui-literals.keys"
 cat "$AUDIT_DIR/extracted.keys" "$AUDIT_DIR/swiftui-literals.keys" \
   | sort -u > "$AUDIT_DIR/required.keys"
