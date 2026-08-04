@@ -7,7 +7,9 @@ versionamento semantico.
 
 ### Added
 
-- Discovery Bonjour, profili multi-box, negoziazione API e token in Keychain.
+- Discovery Bonjour, profili multi-box, negoziazione API e token nel file di
+  configurazione privato (0600), con migrazione una tantum dal Portachiavi
+  legacy.
 - Dashboard, download manager, file manager, LAN/DHCP/Wi-Fi e servizi avanzati.
 - Widget connessione/download, CLI JSON, diagnostica redatta e localizzazione
   italiana/inglese.
