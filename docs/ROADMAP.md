@@ -97,8 +97,10 @@ snapshot tests.
 Evidence: CI on a tagged release candidate, Gatekeeper validation on a clean Mac,
 Sparkle update from the previous version, and a completed release checklist.
 
-Automated evidence already implemented: 29 unit/contract tests plus
-`Scripts/runtime-smoke.sh`, which launches the release bundle in isolated
-clean-install, legacy-upgrade/offline, revoked-token, and multi-box scenarios.
-The checkbox remains open until that suite passes in CI from a clean commit and
-the external release-candidate evidence above is recorded.
+Automated evidence: 30 unit/contract tests plus `Scripts/runtime-smoke.sh`,
+which launches the release bundle in isolated clean-install,
+legacy-upgrade/offline, revoked-token, and multi-box scenarios. The full suite
+passes in CI from a clean commit as of 2026-08-04 (the revoked-token scenario
+caught a real Swift 6 actor-isolation crash in the notification-permission
+request before ever shipping). The checkbox remains open until the external
+release-candidate evidence above is recorded.
