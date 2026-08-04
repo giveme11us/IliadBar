@@ -1313,7 +1313,13 @@ final class AppModel: ObservableObject {
   private func requestNotificationPermission() {
     // UNUserNotificationCenter esplode senza bundle (es. `swift run`): guardia obbligatoria.
     guard Bundle.main.bundleIdentifier != nil, preferences.notificationsEnabled else { return }
-    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+    // Niente completion handler sincrona: verrebbe inferita @MainActor ma il
+    // servizio la invoca sulla propria coda e il runtime Swift 6 fa trap
+    // (dispatch_assert_queue). L'API async gestisce l'hop correttamente.
+    Task.detached {
+      _ = try? await UNUserNotificationCenter.current()
+        .requestAuthorization(options: [.alert, .sound])
+    }
   }
 
   private func notify(title: String, body: String) {

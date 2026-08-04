@@ -49,7 +49,8 @@ run_app() {
       sed -n '1,100p' "$report" >&2
     done
     echo "--- log unificato IliadBar (ultimi 90s) ---" >&2
-    log show --last 90s --info \
+    # /usr/bin/log esplicito: in zsh "log" è un builtin.
+    /usr/bin/log show --last 90s --info \
       --predicate 'processImagePath CONTAINS "IliadBar" OR eventMessage CONTAINS "IliadBar"' \
       --style compact | tail -100 >&2 || true
     return 1
