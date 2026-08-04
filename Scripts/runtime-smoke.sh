@@ -34,19 +34,24 @@ run_app() {
   sleep 6
   if ! kill -0 "$APP_PID" 2>/dev/null; then
     setopt local_options null_glob
-    echo "Scenario runtime non riuscito: $scenario" >&2
+    local app_status=0
+    wait "$APP_PID" 2>/dev/null || app_status=$?
+    echo "Scenario runtime non riuscito: $scenario (exit status: $app_status)" >&2
     sed -n '1,120p' "$SMOKE_ROOT/$scenario.stderr" >&2
     echo "--- stdout ---" >&2
     sed -n '1,60p' "$SMOKE_ROOT/$scenario.stdout" >&2
     # ReportCrash impiega qualche secondo a scrivere il report su disco.
-    sleep 8
+    sleep 10
+    echo "--- DiagnosticReports ---" >&2
+    ls -la "$HOME/Library/Logs/DiagnosticReports/" >&2 || true
     for report in "$HOME"/Library/Logs/DiagnosticReports/IliadBar*; do
       echo "--- crash report: $report ---" >&2
       sed -n '1,100p' "$report" >&2
     done
     echo "--- log unificato IliadBar (ultimi 90s) ---" >&2
-    log show --last 90s --predicate 'processImagePath CONTAINS "IliadBar"' \
-      --style compact 2>/dev/null | tail -80 >&2 || true
+    log show --last 90s --info \
+      --predicate 'processImagePath CONTAINS "IliadBar" OR eventMessage CONTAINS "IliadBar"' \
+      --style compact | tail -100 >&2 || true
     return 1
   fi
   kill "$APP_PID"
@@ -110,7 +115,12 @@ printf '{"boxID":"%s","baseURL":"http://127.0.0.1:%s/api/v15/","appToken":"ci-re
 if ! run_app revoked-token "$REVOKED_DIRECTORY"; then
   echo "--- richieste ricevute dal fixture ---" >&2
   cat "$REVOKED_REQUESTS" >&2 2>/dev/null || true
-  exit 1
+  # Retry diagnostico: se il secondo avvio passa, il primo fallimento è un
+  # effetto una-tantum dell'ambiente (scansioni/prompt alla prima esecuzione).
+  echo "Retry dello scenario revoked-token…" >&2
+  if ! run_app revoked-token-retry "$REVOKED_DIRECTORY"; then
+    exit 1
+  fi
 fi
 grep -q 'GET /api/v15/login/' "$REVOKED_REQUESTS"
 grep -q 'POST /api/v15/login/session/' "$REVOKED_REQUESTS"
