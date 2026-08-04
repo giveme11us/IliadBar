@@ -33,15 +33,20 @@ run_app() {
   APP_PID=$!
   sleep 6
   if ! kill -0 "$APP_PID" 2>/dev/null; then
+    setopt local_options null_glob
     echo "Scenario runtime non riuscito: $scenario" >&2
     sed -n '1,120p' "$SMOKE_ROOT/$scenario.stderr" >&2
     echo "--- stdout ---" >&2
     sed -n '1,60p' "$SMOKE_ROOT/$scenario.stdout" >&2
+    # ReportCrash impiega qualche secondo a scrivere il report su disco.
+    sleep 8
     for report in "$HOME"/Library/Logs/DiagnosticReports/IliadBar*; do
-      [[ -f "$report" ]] || continue
       echo "--- crash report: $report ---" >&2
-      sed -n '1,80p' "$report" >&2
+      sed -n '1,100p' "$report" >&2
     done
+    echo "--- log unificato IliadBar (ultimi 90s) ---" >&2
+    log show --last 90s --predicate 'processImagePath CONTAINS "IliadBar"' \
+      --style compact 2>/dev/null | tail -80 >&2 || true
     return 1
   fi
   kill "$APP_PID"
