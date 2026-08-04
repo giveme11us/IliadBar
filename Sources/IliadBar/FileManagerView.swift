@@ -58,6 +58,7 @@ struct FileManagerView: View {
       operationFooter
     }
     .frame(minWidth: 720, minHeight: 500)
+    .transientFeedback(model)
     .navigationTitle("File")
     .toolbar { toolbar }
     .task {

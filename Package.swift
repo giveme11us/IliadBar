@@ -21,14 +21,17 @@ let package = Package(
         .linkedFramework("LocalAuthentication"),
       ]
     ),
+    .target(name: "IliadBarDesign"),
     .executableTarget(name: "ibx", dependencies: ["IliadboxKit"]),
     .executableTarget(
       name: "IliadBar",
       dependencies: [
         "IliadboxKit",
+        "IliadBarDesign",
         .product(name: "Sparkle", package: "Sparkle"),
       ]),
-    .executableTarget(name: "IliadBarWidget", dependencies: ["IliadboxKit"]),
+    .executableTarget(
+      name: "IliadBarWidget", dependencies: ["IliadboxKit", "IliadBarDesign"]),
     .testTarget(name: "IliadboxKitTests", dependencies: ["IliadboxKit"]),
   ]
 )

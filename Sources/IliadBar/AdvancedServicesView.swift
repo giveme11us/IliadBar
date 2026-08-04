@@ -63,6 +63,7 @@ struct AdvancedServicesView: View {
       }
     }
     .frame(minWidth: 820, minHeight: 560)
+    .transientFeedback(model)
     .task { await model.refreshAdvancedServices() }
     .sheet(isPresented: $showAddRule) {
       AddForwardingRuleSheet(model: model, isPresented: $showAddRule)
@@ -213,7 +214,7 @@ struct AdvancedServicesView: View {
           available: model.advancedCapabilities.contains(.remoteAccess),
           enabled: model.connectionConfiguration?.apiRemoteAccess,
           details: model.connectionConfiguration?.remoteAccessPort.map { "porta \($0)" } ?? "")
-        Text("Le credenziali write-only non vengono lette né mostrate da IliadBar.")
+        Text("Le credenziali dei servizi non vengono mai lette né mostrate da IliadBar.")
           .font(.caption).foregroundStyle(.secondary)
       }
       .padding(20)
@@ -327,7 +328,7 @@ struct AdvancedServicesView: View {
           if model.advancedCapabilities.contains(.vpn), let vpn = model.vpnClientStatus {
             VStack(alignment: .leading, spacing: 7) {
               LabeledContent(
-                "Stato", value: vpn.state ?? (vpn.enabled == true ? "attiva" : "disattiva"))
+                "Stato", value: NetworkPresentation.vpnStateLabel(vpn.state, enabled: vpn.enabled))
               LabeledContent("Profilo", value: vpn.activeDescription ?? vpn.activeVPN ?? "—")
               LabeledContent("Tipo", value: vpn.type?.uppercased() ?? "—")
               if vpn.lastError != nil, vpn.lastError != "none" {

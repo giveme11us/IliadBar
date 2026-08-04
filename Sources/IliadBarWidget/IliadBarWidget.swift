@@ -1,3 +1,4 @@
+import IliadBarDesign
 import IliadboxKit
 import SwiftUI
 import WidgetKit
@@ -32,12 +33,12 @@ private struct ConnectionWidgetView: View {
         Label("iliadbox", systemImage: "network")
           .font(.headline)
         Spacer()
-        Circle().fill(entry.snapshot?.online == true ? Color.green : Color.red).frame(
+        Circle().fill(entry.snapshot?.online == true ? IliadTint.online : IliadTint.offline).frame(
           width: 8, height: 8)
       }
       Spacer()
-      metric("arrow.down", entry.snapshot?.downloadRate ?? 0, color: .blue)
-      metric("arrow.up", entry.snapshot?.uploadRate ?? 0, color: .green)
+      metric("arrow.down", entry.snapshot?.downloadRate ?? 0, color: IliadTint.trafficDown)
+      metric("arrow.up", entry.snapshot?.uploadRate ?? 0, color: IliadTint.trafficUp)
       if let snapshot = entry.snapshot {
         Text("Aggiornato \(snapshot.updatedAt, style: .relative)")
           .font(.caption2).foregroundStyle(.secondary)
@@ -71,7 +72,7 @@ private struct DownloadsWidgetView: View {
         Text("download attivi").foregroundStyle(.secondary)
       }
       if let progress = entry.snapshot?.downloadProgress {
-        ProgressView(value: progress).tint(.red)
+        ProgressView(value: progress).tint(IliadPalette.red)
         Text(progress, format: .percent.precision(.fractionLength(0))).font(.caption)
           .monospacedDigit()
       }

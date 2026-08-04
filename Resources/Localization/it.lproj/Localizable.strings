@@ -283,3 +283,16 @@
 "Avvio di un download" = "Avvio di un download";
 "Completamento di un download" = "Completamento di un download";
 "Scegli quali eventi dei download generano una notifica." = "Scegli quali eventi dei download generano una notifica.";
+
+/* Vocabolario di rete (layer di presentazione) */
+"connessa" = "connessa";
+"disconnessa" = "disconnessa";
+"in collegamento" = "in collegamento";
+"in disconnessione" = "in disconnessione";
+"Aperta" = "Aperta";
+"attiva" = "attiva";
+"disattiva" = "disattiva";
+"connesso" = "connesso";
+"autenticato" = "autenticato";
+"Attiva o disattiva l'accoppiamento WPS per questa rete" = "Attiva o disattiva l'accoppiamento WPS per questa rete";
+"Le credenziali dei servizi non vengono mai lette né mostrate da IliadBar." = "Le credenziali dei servizi non vengono mai lette né mostrate da IliadBar.";

@@ -326,3 +326,16 @@
 "Avvio di un download" = "When a download starts";
 "Completamento di un download" = "When a download completes";
 "Scegli quali eventi dei download generano una notifica." = "Choose which download events trigger a notification.";
+
+/* Network vocabulary (presentation layer) */
+"connessa" = "connected";
+"disconnessa" = "disconnected";
+"in collegamento" = "connecting";
+"in disconnessione" = "disconnecting";
+"Aperta" = "Open";
+"attiva" = "active";
+"disattiva" = "inactive";
+"connesso" = "connected";
+"autenticato" = "authenticated";
+"Attiva o disattiva l'accoppiamento WPS per questa rete" = "Enable or disable WPS pairing for this network";
+"Le credenziali dei servizi non vengono mai lette né mostrate da IliadBar." = "Service credentials are never read or displayed by IliadBar.";

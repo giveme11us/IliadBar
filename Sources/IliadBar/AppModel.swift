@@ -14,6 +14,15 @@ struct Crumb: Identifiable, Equatable {
   var id: String { pathB64 }
 }
 
+/// Esito visibile di un'azione utente, indipendente dalla finestra in cui
+/// l'azione è nata.
+struct TransientFeedback: Equatable, Identifiable {
+  enum Style { case error, success, info }
+  let id: UUID
+  let message: String
+  let style: Style
+}
+
 enum BoxAvailability: Equatable {
   case unconfigured
   case connecting
@@ -98,8 +107,11 @@ final class AppModel: ObservableObject {
   @Published var paired: Bool
   @Published var pairingInProgress = false
   @Published var credentialActivationInProgress = false
-  /// Feedback transiente (ultimo esito / errore), mostrato sotto l'header.
+  /// Ultimo esito / errore, mostrato sotto l'header del pannello.
   @Published var statusLine: String?
+  /// Esito transiente di un'azione: le finestre lo mostrano come banner
+  /// nel contesto in cui l'azione è avvenuta (auto-dismiss).
+  @Published private(set) var transientFeedback: TransientFeedback?
   @Published var launchAtLogin: Bool
   @Published var profiles: [BoxProfile]
   @Published var activeProfileID: String?
@@ -111,6 +123,9 @@ final class AppModel: ObservableObject {
 
   private var client: IliadboxClient
   private let discovery = IliadboxDiscovery()
+  private var lastFeedbackMessage: String?
+  private var lastFeedbackDate = Date.distantPast
+  private var feedbackDismissTask: Task<Void, Never>?
   private var pollTask: Task<Void, Never>?
   private var eventTask: Task<Void, Never>?
   private var previousTaskStatuses: [Int: String] = [:]
@@ -161,7 +176,7 @@ final class AppModel: ObservableObject {
       }.value
       if let message = credential.1 {
         NSLog("IliadBar credential migration failed: %@", message)
-        statusLine = message
+        reportError(message)
         return
       }
       token = credential.0
@@ -176,7 +191,7 @@ final class AppModel: ObservableObject {
         try ConfigStore.save(config)
         profiles = ConfigStore.loadAppConfig().boxes
       } catch {
-        statusLine = error.localizedDescription
+        reportError(error)
         return
       }
     }
@@ -285,7 +300,7 @@ final class AppModel: ObservableObject {
 
   func addURL(_ url: String) async {
     guard paired else {
-      statusLine = appString("Prima associa IliadBar alla iliadbox")
+      reportError(appString("Prima associa IliadBar alla iliadbox"))
       return
     }
     do {
@@ -298,7 +313,7 @@ final class AppModel: ObservableObject {
       notifyDownloadEvent(.started, title: appString("Download avviato sulla iliadbox"), body: name)
       await refresh()
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
       notifyDownloadEvent(
         .failed, title: appString("Errore download"), body: error.localizedDescription)
     }
@@ -310,7 +325,7 @@ final class AppModel: ObservableObject {
         .trimmingCharacters(in: .whitespacesAndNewlines),
       text.hasPrefix("magnet:")
     else {
-      statusLine = appString("Negli appunti non c'è un link magnet")
+      reportError(appString("Negli appunti non c'è un link magnet"))
       return
     }
     await add(magnet: text)
@@ -331,7 +346,7 @@ final class AppModel: ObservableObject {
       statusLine = nil
       await refresh()
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -344,7 +359,7 @@ final class AppModel: ObservableObject {
       }
       await refresh()
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -361,7 +376,7 @@ final class AppModel: ObservableObject {
       }
       await refresh()
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -370,7 +385,7 @@ final class AppModel: ObservableObject {
       _ = try await client.retryDownload(id: task.id)
       await refresh()
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -379,7 +394,7 @@ final class AppModel: ObservableObject {
       detailTask = try await client.setDownloadPriority(id: task.id, priority: priority)
       await refresh()
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -408,7 +423,7 @@ final class AppModel: ObservableObject {
       try await client.setDownloadFilePriority(taskID: task.id, fileID: file.id, priority: priority)
       await loadDownloadDetails(task)
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -475,7 +490,7 @@ final class AppModel: ObservableObject {
         return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
       }
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -491,7 +506,7 @@ final class AppModel: ObservableObject {
       try await client.createDirectory(parentB64: parent, name: name)
       await reloadFiles()
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -500,7 +515,7 @@ final class AppModel: ObservableObject {
       _ = try await client.rename(pathB64: entry.path, to: name)
       await reloadFiles()
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -512,7 +527,7 @@ final class AppModel: ObservableObject {
       await waitForFilesystemTask(task.id)
       await reloadFiles()
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -539,7 +554,7 @@ final class AppModel: ObservableObject {
     } catch is CancellationError {
       fileOperationStatus = nil
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -553,10 +568,10 @@ final class AppModel: ObservableObject {
       }
       NSPasteboard.general.clearContents()
       NSPasteboard.general.setString(url, forType: .string)
-      statusLine = appString("Link copiato negli appunti")
+      reportSuccess(appString("Link copiato negli appunti"))
       await refreshShareLinks()
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -564,7 +579,7 @@ final class AppModel: ObservableObject {
     do {
       shareLinks = try await client.shareLinks()
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -573,7 +588,7 @@ final class AppModel: ObservableObject {
       try await client.deleteShareLink(token: link.token)
       await refreshShareLinks()
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -608,7 +623,7 @@ final class AppModel: ObservableObject {
         statusLine = NSLocalizedString("Caricamento annullato", comment: "Upload cancellation")
         break
       } catch {
-        statusLine = appString("%@: %@", url.lastPathComponent, error.localizedDescription)
+        reportError(appString("%@: %@", url.lastPathComponent, error.localizedDescription))
         break
       }
     }
@@ -621,7 +636,7 @@ final class AppModel: ObservableObject {
       do {
         try await client.cancelFilesystemTask(id: id)
       } catch {
-        statusLine = error.localizedDescription
+        reportError(error)
       }
     }
     currentFilesystemTaskID = nil
@@ -687,7 +702,7 @@ final class AppModel: ObservableObject {
 
   func renameLanHost(_ host: LanHost, to name: String) async {
     guard networkSettingsAllowed else {
-      statusLine = appString("Il permesso Impostazioni non è concesso a IliadBar")
+      reportError(appString("Il permesso Impostazioni non è concesso a IliadBar"))
       return
     }
     guard let interface = hostInterfaces[host.id] else { return }
@@ -695,7 +710,7 @@ final class AppModel: ObservableObject {
       _ = try await client.updateLanHost(interface: interface, id: host.id, name: name)
       await refreshNetwork()
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -703,14 +718,14 @@ final class AppModel: ObservableObject {
 
   func setWifiEnabled(_ enabled: Bool) async {
     guard networkSettingsAllowed else {
-      statusLine = appString("Il permesso Impostazioni non è concesso a IliadBar")
+      reportError(appString("Il permesso Impostazioni non è concesso a IliadBar"))
       return
     }
     do {
       wifiConfig = try await client.setWifiEnabled(enabled)
       await refreshNetwork()
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -719,7 +734,7 @@ final class AppModel: ObservableObject {
     do {
       _ = try await client.setWifiBSSEnabled(id: bss.id, enabled: enabled)
       await refreshNetwork()
-    } catch { statusLine = error.localizedDescription }
+    } catch { reportError(error) }
   }
 
   func setWifiBSSWPS(_ bss: WifiBSS, enabled: Bool) async {
@@ -727,12 +742,12 @@ final class AppModel: ObservableObject {
     do {
       _ = try await client.setWifiBSSWPS(id: bss.id, enabled: enabled)
       await refreshNetwork()
-    } catch { statusLine = error.localizedDescription }
+    } catch { reportError(error) }
   }
 
   func addDhcpLease(ip: String, mac: String) async {
     guard networkSettingsAllowed else {
-      statusLine = appString("Il permesso Impostazioni non è concesso a IliadBar")
+      reportError(appString("Il permesso Impostazioni non è concesso a IliadBar"))
       return
     }
     guard IliadboxInputValidator.isIPv4Address(ip), IliadboxInputValidator.isMACAddress(mac)
@@ -744,20 +759,20 @@ final class AppModel: ObservableObject {
       _ = try await client.addDhcpStaticLease(ip: ip, mac: mac)
       await refreshNetwork()
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
   func deleteDhcpLease(_ lease: DhcpStaticLease) async {
     guard networkSettingsAllowed else {
-      statusLine = appString("Il permesso Impostazioni non è concesso a IliadBar")
+      reportError(appString("Il permesso Impostazioni non è concesso a IliadBar"))
       return
     }
     do {
       try await client.deleteDhcpStaticLease(id: lease.id)
       await refreshNetwork()
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -870,7 +885,7 @@ final class AppModel: ObservableObject {
         ))
       await refreshAdvancedServices()
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -880,7 +895,7 @@ final class AppModel: ObservableObject {
       _ = try await client.addParentalRule(macs: macs, description: description)
       await refreshAdvancedServices()
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -890,7 +905,7 @@ final class AppModel: ObservableObject {
       try await client.deleteParentalRule(id: rule.id)
       await refreshAdvancedServices()
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -898,7 +913,7 @@ final class AppModel: ObservableObject {
     protocolName: String, publicPort: Int, lanIP: String, privatePort: Int, comment: String
   ) async {
     guard networkSettingsAllowed else {
-      statusLine = appString("Il permesso Impostazioni non è concesso a IliadBar")
+      reportError(appString("Il permesso Impostazioni non è concesso a IliadBar"))
       return
     }
     guard IliadboxInputValidator.isIPv4Address(lanIP) else {
@@ -924,7 +939,7 @@ final class AppModel: ObservableObject {
         lanPort: privatePort, comment: comment
       )
       await refreshAdvancedServices()
-    } catch { statusLine = error.localizedDescription }
+    } catch { reportError(error) }
   }
 
   func setPortForwardingEnabled(_ rule: PortForwardingRule, enabled: Bool) async {
@@ -932,7 +947,7 @@ final class AppModel: ObservableObject {
     do {
       _ = try await client.setPortForwardingRuleEnabled(id: rule.id, enabled: enabled)
       await refreshAdvancedServices()
-    } catch { statusLine = error.localizedDescription }
+    } catch { reportError(error) }
   }
 
   func deletePortForwarding(_ rule: PortForwardingRule) async {
@@ -940,7 +955,7 @@ final class AppModel: ObservableObject {
     do {
       try await client.deletePortForwardingRule(id: rule.id)
       await refreshAdvancedServices()
-    } catch { statusLine = error.localizedDescription }
+    } catch { reportError(error) }
   }
 
   private func waitForFilesystemTask(_ id: Int) async {
@@ -991,7 +1006,7 @@ final class AppModel: ObservableObject {
       statusLine = nil
       notify(title: appString("File copiato sul Mac"), body: destination.lastPathComponent)
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -1022,7 +1037,7 @@ final class AppModel: ObservableObject {
       requestNotificationPermission()
       startPolling()
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -1152,7 +1167,7 @@ final class AppModel: ObservableObject {
       reloadConfiguration()
       statusLine = appString("%@ trovata sulla rete locale", box.name)
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -1168,7 +1183,7 @@ final class AppModel: ObservableObject {
       try ConfigStore.saveProfile(profile)
       reloadConfiguration()
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -1177,7 +1192,7 @@ final class AppModel: ObservableObject {
       try ConfigStore.setActiveBox(id)
       reloadConfiguration()
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -1186,7 +1201,7 @@ final class AppModel: ObservableObject {
       try ConfigStore.removeProfile(profile.id)
       reloadConfiguration()
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
       reloadConfiguration()
     }
   }
@@ -1199,7 +1214,7 @@ final class AppModel: ObservableObject {
       preferences = config.preferences
       if paired { startPolling() }
     } catch {
-      statusLine = error.localizedDescription
+      reportError(error)
     }
   }
 
@@ -1332,6 +1347,41 @@ final class AppModel: ObservableObject {
     UNUserNotificationCenter.current().add(request)
   }
 
+  /// Pubblica un esito con auto-dismiss; i duplicati ravvicinati (es. un
+  /// polling che fallisce a ogni ciclo) non rigenerano il banner.
+  func emitFeedback(_ message: String, style: TransientFeedback.Style = .error) {
+    let now = Date()
+    if message == lastFeedbackMessage, now.timeIntervalSince(lastFeedbackDate) < 8 {
+      lastFeedbackDate = now
+      return
+    }
+    lastFeedbackMessage = message
+    lastFeedbackDate = now
+    let feedback = TransientFeedback(id: UUID(), message: message, style: style)
+    transientFeedback = feedback
+    feedbackDismissTask?.cancel()
+    feedbackDismissTask = Task { [weak self] in
+      try? await Task.sleep(nanoseconds: 4_500_000_000)
+      guard !Task.isCancelled else { return }
+      if self?.transientFeedback?.id == feedback.id { self?.transientFeedback = nil }
+    }
+  }
+
+  /// Errore di un'azione: statusLine per il pannello + banner per le finestre.
+  private func reportError(_ error: Error) {
+    reportError(error.localizedDescription)
+  }
+
+  private func reportError(_ message: String) {
+    statusLine = message
+    emitFeedback(message, style: .error)
+  }
+
+  private func reportSuccess(_ message: String) {
+    statusLine = message
+    emitFeedback(message, style: .success)
+  }
+
   private func recordFailure(_ error: Error) {
     let message: String
     if let fbxError = error as? FbxError {
@@ -1353,6 +1403,7 @@ final class AppModel: ObservableObject {
       availability = .offline(message: message)
     }
     statusLine = message
+    emitFeedback(message, style: .error)
     saveWidgetSnapshot()
   }
 

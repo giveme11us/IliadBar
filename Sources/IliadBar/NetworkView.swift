@@ -65,6 +65,7 @@ struct NetworkView: View {
       }
     }
     .frame(minWidth: 760, minHeight: 520)
+    .transientFeedback(model)
     .task { await model.refreshNetwork() }
     .alert(
       "Rinomina dispositivo",
@@ -224,8 +225,12 @@ struct NetworkView: View {
             HStack(alignment: .top, spacing: 18) {
               VStack(alignment: .leading, spacing: 7) {
                 LabeledContent("SSID", value: bss.config?.ssid ?? "—")
-                LabeledContent("Sicurezza", value: bss.config?.encryption ?? "—")
-                LabeledContent("Stato", value: bss.status?.state ?? "—")
+                LabeledContent(
+                  "Sicurezza",
+                  value: NetworkPresentation.wifiEncryptionLabel(bss.config?.encryption)
+                )
+                LabeledContent(
+                  "Stato", value: NetworkPresentation.wifiStateLabel(bss.status?.state))
                 LabeledContent("Client", value: "\(bss.status?.stationCount ?? 0)")
                 if let enabled = bss.config?.enabled {
                   Toggle(
@@ -246,7 +251,7 @@ struct NetworkView: View {
                     )
                   )
                   .disabled(!model.networkSettingsAllowed)
-                  .help("Disponibile perché dichiarato da questo firmware")
+                  .help("Attiva o disattiva l'accoppiamento WPS per questa rete")
                 }
               }
               Spacer()
@@ -271,7 +276,7 @@ struct NetworkView: View {
                 HStack {
                   Text(ap.name).fontWeight(.medium)
                   Spacer()
-                  Text(ap.config?.band ?? "—")
+                  Text(NetworkPresentation.wifiBandLabel(ap.config?.band))
                   Text(channelLabel(ap)).foregroundStyle(.secondary)
                 }
                 if ap.id != model.wifiAccessPoints.last?.id { Divider() }
@@ -294,7 +299,8 @@ struct NetworkView: View {
                     .font(.caption).foregroundStyle(.secondary).monospacedDigit()
                   }
                   Spacer()
-                  Text(station.state ?? "—").font(.caption).foregroundStyle(.secondary)
+                  Text(NetworkPresentation.wifiStateLabel(station.state))
+                    .font(.caption).foregroundStyle(.secondary)
                 }
                 if station.id != model.wifiStations.last?.id { Divider() }
               }

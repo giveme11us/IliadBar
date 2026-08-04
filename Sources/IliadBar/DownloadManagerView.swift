@@ -1,3 +1,4 @@
+import IliadBarDesign
 import IliadboxKit
 import SwiftUI
 
@@ -93,6 +94,7 @@ struct DownloadManagerView: View {
       }
     }
     .frame(minWidth: 760, minHeight: 520)
+    .transientFeedback(model)
     .navigationTitle("Download")
     .toolbar {
       ToolbarItemGroup {
@@ -220,10 +222,10 @@ private struct DownloadListRow: View {
   }
 
   private var statusColor: Color {
-    if task.hasFailed { return .red }
-    if task.isFinished { return .green }
-    if task.status == "stopped" { return .orange }
-    return .accentColor
+    if task.hasFailed { return IliadPalette.red }
+    if task.isFinished { return IliadPalette.green }
+    if task.status == "stopped" { return IliadPalette.amber }
+    return IliadPalette.blue
   }
 }
 

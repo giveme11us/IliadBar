@@ -1,3 +1,4 @@
+import IliadBarDesign
 import IliadboxKit
 import SwiftUI
 
@@ -45,9 +46,9 @@ struct BoxView: View {
     if let connection = model.connection {
       HStack(spacing: 5) {
         Circle()
-          .fill(connection.isUp ? Color.green : Color.red)
+          .fill(connection.isUp ? IliadTint.online : IliadTint.offline)
           .frame(width: 7, height: 7)
-        Text(connection.isUp ? "connessa" : (connection.state ?? "-"))
+        Text(NetworkPresentation.connectionStateLabel(connection.isUp ? "up" : connection.state))
           .font(.callout)
         if let media = connection.media {
           Text("· \(media.uppercased())")
@@ -66,13 +67,13 @@ struct BoxView: View {
 
       RateRow(
         symbol: "arrow.down",
-        tint: .blue,
+        tint: IliadTint.trafficDown,
         rate: connection.rateDown,
         bandwidth: connection.bandwidthDown
       )
       RateRow(
         symbol: "arrow.up",
-        tint: .green,
+        tint: IliadTint.trafficUp,
         rate: connection.rateUp,
         bandwidth: connection.bandwidthUp
       )

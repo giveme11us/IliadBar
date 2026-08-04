@@ -1,3 +1,4 @@
+import IliadBarDesign
 import IliadboxKit
 import SwiftUI
 
@@ -105,7 +106,7 @@ struct PanelView: View {
         model.activeTasks.isEmpty
           ? 0.08 : model.activeTasks.map(\.progress).reduce(0, +) / Double(model.activeTasks.count)
       case .file:
-        model.storageDisks.isEmpty ? 0.08 : 0.7
+        storageFillRatio
       case .box:
         model.connection?.isUp == true ? 1 : 0.08
       }
@@ -118,6 +119,16 @@ struct PanelView: View {
       }
     }
     .frame(height: 3)
+  }
+
+  /// Riempimento reale dello storage (usato/totale su tutte le partizioni);
+  /// minimo visivo quando i dati non ci sono ancora.
+  private var storageFillRatio: Double {
+    let partitions = model.storageDisks.flatMap { $0.partitions ?? [] }
+    let total = partitions.compactMap(\.totalBytes).reduce(0, +)
+    guard total > 0 else { return 0.08 }
+    let free = partitions.compactMap(\.freeBytes).reduce(0, +)
+    return max(0.08, Double(total - free) / Double(total))
   }
 
   private func meterColor(for candidate: PanelTab) -> Color {
@@ -454,22 +465,14 @@ struct PanelView: View {
   }
 
   private var statusColor: Color {
-    guard model.paired else { return IliadPalette.amber }
+    guard model.paired else { return IliadTint.connecting }
     return switch model.availability {
-    case .online: IliadPalette.green
-    case .connecting: IliadPalette.amber
-    case .stale: Color.orange
-    case .offline, .unconfigured: IliadPalette.red
+    case .online: IliadTint.online
+    case .connecting: IliadTint.connecting
+    case .stale: IliadTint.stale
+    case .offline, .unconfigured: IliadTint.offline
     }
   }
-}
-
-private enum IliadPalette {
-  static let red = Color(red: 0.90, green: 0.00, blue: 0.12)
-  static let blue = Color(red: 0.12, green: 0.48, blue: 0.96)
-  static let violet = Color(red: 0.48, green: 0.35, blue: 0.91)
-  static let green = Color(red: 0.12, green: 0.68, blue: 0.43)
-  static let amber = Color(red: 0.91, green: 0.57, blue: 0.08)
 }
 
 private struct TrafficMetric: View {
@@ -590,7 +593,7 @@ private struct TaskRow: View {
             .foregroundStyle(.secondary)
         }
       }
-      ProgressBarView(percent: task.progress * 100, tint: tint)
+      ProgressBarView(percent: task.progress * 100, tint: IliadTint.downloadStatus(task.status))
       Text(metaText)
         .font(.caption2)
         .foregroundStyle(.secondary)
@@ -605,16 +608,6 @@ private struct TaskRow: View {
 
   private var percentText: String {
     task.status == "done" ? "100%" : "\(Int(task.progress * 100))%"
-  }
-
-  private var tint: Color {
-    switch task.status {
-    case "downloading", "starting": .blue
-    case "done", "seeding": .green
-    case "error": .red
-    case "stopped": .gray
-    default: .orange
-    }
   }
 
   private var metaText: String {
