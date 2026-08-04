@@ -119,6 +119,7 @@ struct PanelView: View {
       }
     }
     .frame(height: 3)
+    .accessibilityHidden(true)
   }
 
   /// Riempimento reale dello storage (usato/totale su tutte le partizioni);

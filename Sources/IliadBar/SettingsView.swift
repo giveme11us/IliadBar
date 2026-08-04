@@ -1,3 +1,4 @@
+import IliadBarDesign
 import IliadboxKit
 import SwiftUI
 
@@ -50,24 +51,9 @@ private struct GeneralSettingsView: View {
   @ObservedObject var model: AppModel
 
   var body: some View {
+    // La scelta della box vive solo nel pannello iliadbox: qui restava un
+    // secondo controllo sulla stessa impostazione.
     Form {
-      Section("Box attiva") {
-        Picker(
-          "iliadbox",
-          selection: Binding(
-            get: { model.activeProfileID ?? "" },
-            set: { model.selectProfile($0) }
-          )
-        ) {
-          if model.profiles.isEmpty {
-            Text("Nessuna box configurata").tag("")
-          }
-          ForEach(model.profiles) { profile in
-            Text(profile.name).tag(profile.id)
-          }
-        }
-      }
-
       Section("Aggiornamento") {
         Stepper(
           "Durante i download: \(model.preferences.activeRefreshSeconds) s",
@@ -165,7 +151,8 @@ private struct BoxSettingsView: View {
               Image(
                 systemName: profile.id == model.activeProfileID ? "checkmark.circle.fill" : "circle"
               )
-              .foregroundStyle(profile.id == model.activeProfileID ? Color.green : Color.secondary)
+              .foregroundStyle(
+                profile.id == model.activeProfileID ? IliadTint.online : Color.secondary)
               VStack(alignment: .leading, spacing: 2) {
                 Text(profile.name)
                 Text(profile.baseURL)

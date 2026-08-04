@@ -164,7 +164,7 @@ struct AdvancedServicesView: View {
           if model.advancedCapabilities.contains(.incomingPorts) {
             ForEach(model.incomingPorts) { port in
               HStack {
-                Circle().fill(port.active == true ? Color.green : Color.secondary).frame(
+                Circle().fill(port.active == true ? IliadTint.online : Color.secondary).frame(
                   width: 7, height: 7)
                 Text(serviceName(port.id))
                 Spacer()
@@ -341,8 +341,9 @@ struct AdvancedServicesView: View {
             VStack(spacing: 0) {
               ForEach(model.vpnServers) { server in
                 HStack {
-                  Circle().fill(server.state == "started" ? Color.green : Color.secondary).frame(
-                    width: 7, height: 7)
+                  Circle().fill(server.state == "started" ? IliadTint.online : Color.secondary)
+                    .frame(
+                      width: 7, height: 7)
                   VStack(alignment: .leading) {
                     Text(server.name)
                     Text(server.type.uppercased()).font(.caption).foregroundStyle(.secondary)
@@ -377,7 +378,8 @@ struct AdvancedServicesView: View {
                   Text(Date(timeIntervalSince1970: TimeInterval(record.start)), style: .date)
                     .font(.caption)
                   if record.conflict == true {
-                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(
+                      IliadPalette.amber)
                   }
                 }
                 .padding(.vertical, 7)
@@ -541,9 +543,9 @@ private struct ParentalPlanningSheet: View {
           }
         }
         HStack(spacing: 14) {
-          legend("Consentito", .green)
-          legend("Solo web", .orange)
-          legend("Bloccato", .red)
+          legend("Consentito", IliadPalette.green)
+          legend("Solo web", IliadPalette.amber)
+          legend("Bloccato", IliadPalette.red)
         }
         if model.parentalControlAllowed {
           Text("Trascina sulle fasce per applicarle in blocco; un tocco alterna lo stato.")
@@ -616,9 +618,9 @@ private struct ParentalPlanningSheet: View {
   }
   private func planningColor(state: String) -> Color {
     switch state {
-    case "denied": .red
-    case "webonly": .orange
-    default: .green
+    case "denied": IliadPalette.red
+    case "webonly": IliadPalette.amber
+    default: IliadPalette.green
     }
   }
   private func legend(_ text: String, _ color: Color) -> some View {
@@ -650,7 +652,7 @@ private struct AddParentalRuleSheet: View {
       }
       if !macText.isEmpty && !macsAreValid {
         Label("Controlla il formato degli indirizzi MAC.", systemImage: "exclamationmark.triangle")
-          .font(.caption).foregroundStyle(.red)
+          .font(.caption).foregroundStyle(IliadPalette.red)
       }
       HStack {
         Button("Annulla", role: .cancel) { isPresented = false }

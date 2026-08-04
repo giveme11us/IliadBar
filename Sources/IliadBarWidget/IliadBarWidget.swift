@@ -48,6 +48,7 @@ private struct ConnectionWidgetView: View {
       }
     }
     .containerBackground(.fill.tertiary, for: .widget)
+    .widgetURL(URL(string: "iliadbar://home"))
   }
   /// Nome distinto da `metric(_:_:)` dell'app: qui il primo argomento è un
   /// simbolo SF, non una stringa da localizzare.
@@ -80,6 +81,7 @@ private struct DownloadsWidgetView: View {
       }
     }
     .containerBackground(.fill.tertiary, for: .widget)
+    .widgetURL(URL(string: "iliadbar://download"))
   }
 }
 

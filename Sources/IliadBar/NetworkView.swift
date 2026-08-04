@@ -1,5 +1,6 @@
 import AppKit
 import CoreImage
+import IliadBarDesign
 import IliadboxKit
 import SwiftUI
 
@@ -141,7 +142,7 @@ struct NetworkView: View {
             HStack {
               Text(host.primaryName).fontWeight(.medium)
               if host.reachable == true {
-                Text("online").font(.caption2).foregroundStyle(.green)
+                Text("online").font(.caption2).foregroundStyle(IliadTint.online)
               }
             }
             Text(

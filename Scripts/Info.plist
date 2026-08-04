@@ -29,7 +29,7 @@
 	<!-- Solo menu bar: niente icona nel Dock -->
 	<key>LSUIElement</key>
 	<true/>
-	<!-- Handler dello schema magnet: -->
+	<!-- Handler dello schema magnet: e schema interno usato dai widget. -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -38,6 +38,14 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>magnet</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>IliadBar</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>iliadbar</string>
 			</array>
 		</dict>
 	</array>

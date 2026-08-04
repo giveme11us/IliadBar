@@ -105,6 +105,13 @@ struct HomeView: View {
       )
       .frame(width: 140)
     }
+    // Con VoiceOver la freccia non dice nulla: la direzione va nel testo.
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(
+      symbol == "arrow.down"
+        ? String(localized: "Download") : String(localized: "Upload")
+    )
+    .accessibilityValue("\(Format.bytes(value ?? 0))/s")
   }
 
   // MARK: Download
@@ -190,6 +197,7 @@ struct HomeView: View {
         .font(.caption2)
         .foregroundStyle(.secondary)
     }
+    .accessibilityElement(children: .combine)
   }
 
   // MARK: Box

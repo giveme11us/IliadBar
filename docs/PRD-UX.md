@@ -138,17 +138,22 @@ Wake-on-LAN, verifica porta esterna, riavvio box, Quick Look remoto.
 Ogni passata = serie di commit su `development` con CI verde; una passata
 chiude tutti i dettagli della propria area, non ci si torna.
 
-1. **Fondamenta** — feedback transiente, DesignSystem, presentazione/copy,
+1. ✅ **Fondamenta** — feedback transiente, DesignSystem, presentazione/copy,
    fix dati finti. Prerequisito di tutto.
-2. **Finestra unica** — consolidamento delle quattro finestre, sidebar
+2. ✅ **Finestra unica** — consolidamento delle quattro finestre, sidebar
    unificato, routing dal pannello, activation policy, stato persistente.
-3. **Pannello e onboarding** — pairing, permessi, right-click.
-4. **Sezione Download** — ponte verso File, griglia blocchi.
-5. **Sezione File** — Table, breadcrumb, upload, drag & drop.
-6. **Rete e Servizi** — picker dispositivi, griglia parentale, read-only
+3. ✅ **Pannello e onboarding** — pairing, permessi, right-click.
+4. ✅ **Sezione Download** — ponte verso File, griglia blocchi.
+5. ✅ **Sezione File** — Table, breadcrumb, upload, drag & drop.
+6. ✅ **Rete e Servizi** — picker dispositivi, griglia parentale, read-only
    espliciti.
-7. **Coerenza finale** — audit dark mode, VoiceOver sulle viste toccate,
+7. ✅ **Coerenza finale** — audit dark mode, VoiceOver sulle viste toccate,
    widgetURL, Settings riordinate.
+
+Tutte le passate sono implementate e in `development` con CI verde. Resta
+aperto un solo criterio di §7: la revisione visiva delle superfici toccate,
+che richiede di aprire l'app su un Mac (l'automazione GUI non è disponibile
+in questo ambiente di sviluppo).
 
 ## 7. Criteri di accettazione globali
 

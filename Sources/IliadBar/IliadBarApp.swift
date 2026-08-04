@@ -212,7 +212,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   @objc private func openMainWindow() {
-    model.mainWindowSection = .home
+    showMainWindow(section: .home)
+  }
+
+  private func showMainWindow(section: MainSection) {
+    model.mainWindowSection = section
     NSApp.activate(ignoringOtherApps: true)
     // Una Window scene di SwiftUI si apre da openWindow o dalla voce di menu
     // che SwiftUI stessa costruisce: da AppKit resta la seconda strada.
@@ -315,8 +319,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   /// Punto d'ingresso dei link magnet: quando IliadBar è l'handler dello
   /// schema, LaunchServices consegna qui gli URL (anche ad app non avviata).
   func application(_ application: NSApplication, open urls: [URL]) {
-    for url in urls where url.scheme == "magnet" {
-      Task { await model.add(magnet: url.absoluteString) }
+    for url in urls {
+      switch url.scheme {
+      case "magnet":
+        Task { await model.add(magnet: url.absoluteString) }
+      case "iliadbar":
+        // Punto d'ingresso dei widget: iliadbar://download apre la finestra
+        // sulla sezione corrispondente.
+        showMainWindow(section: MainSection(rawValue: url.host() ?? "") ?? .home)
+      default:
+        continue
+      }
     }
   }
 }

@@ -113,6 +113,7 @@ struct DownloadManagerView: View {
           .strokeBorder(IliadPalette.blue, style: StrokeStyle(lineWidth: 2, dash: [6]))
           .padding(4)
           .allowsHitTesting(false)
+          .accessibilityHidden(true)
       }
     }
     .navigationTitle("Download")
