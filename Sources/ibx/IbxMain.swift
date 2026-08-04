@@ -285,20 +285,21 @@ struct IbxMain {
     let connection = try await client.connectionStatus()
     let system = try await client.systemInfo()
     if json {
-      try emitJSON([
-        "connection": [
-          "state": connection.state ?? "", "media": connection.media ?? "",
-          "ipv4": connection.ipv4 ?? "",
-          "rate_down": connection.rateDown ?? 0, "rate_up": connection.rateUp ?? 0,
-          "bandwidth_down": connection.bandwidthDown ?? 0,
-          "bandwidth_up": connection.bandwidthUp ?? 0,
-          "ipv4_port_range": connection.ipv4PortRange ?? [],
-        ],
-        "system": [
-          "model": system.modelName ?? "", "firmware": system.firmwareVersion ?? "",
-          "uptime": system.uptimeVal ?? 0, "max_temperature": system.maxTemperature ?? 0,
-        ],
-      ])
+      // Sotto-espressioni tipizzate: il literal unico manda in timeout il
+      // type-checker delle toolchain meno recenti (runner CI).
+      let connectionPayload: [String: Any] = [
+        "state": connection.state ?? "", "media": connection.media ?? "",
+        "ipv4": connection.ipv4 ?? "",
+        "rate_down": connection.rateDown ?? 0, "rate_up": connection.rateUp ?? 0,
+        "bandwidth_down": connection.bandwidthDown ?? 0,
+        "bandwidth_up": connection.bandwidthUp ?? 0,
+        "ipv4_port_range": connection.ipv4PortRange ?? [],
+      ]
+      let systemPayload: [String: Any] = [
+        "model": system.modelName ?? "", "firmware": system.firmwareVersion ?? "",
+        "uptime": system.uptimeVal ?? 0, "max_temperature": system.maxTemperature ?? 0,
+      ]
+      try emitJSON(["connection": connectionPayload, "system": systemPayload])
       return
     }
 
