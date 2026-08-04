@@ -35,6 +35,13 @@ run_app() {
   if ! kill -0 "$APP_PID" 2>/dev/null; then
     echo "Scenario runtime non riuscito: $scenario" >&2
     sed -n '1,120p' "$SMOKE_ROOT/$scenario.stderr" >&2
+    echo "--- stdout ---" >&2
+    sed -n '1,60p' "$SMOKE_ROOT/$scenario.stdout" >&2
+    for report in "$HOME"/Library/Logs/DiagnosticReports/IliadBar*; do
+      [[ -f "$report" ]] || continue
+      echo "--- crash report: $report ---" >&2
+      sed -n '1,80p' "$report" >&2
+    done
     return 1
   fi
   kill "$APP_PID"
@@ -95,7 +102,11 @@ fi
 REVOKED_PORT=$(<"$REVOKED_PORT_FILE")
 printf '{"boxID":"%s","baseURL":"http://127.0.0.1:%s/api/v15/","appToken":"ci-revoked-token-value"}\n' \
   "$REVOKED_ID" "$REVOKED_PORT" > "$REVOKED_CONFIG"
-run_app revoked-token "$REVOKED_DIRECTORY"
+if ! run_app revoked-token "$REVOKED_DIRECTORY"; then
+  echo "--- richieste ricevute dal fixture ---" >&2
+  cat "$REVOKED_REQUESTS" >&2 2>/dev/null || true
+  exit 1
+fi
 grep -q 'GET /api/v15/login/' "$REVOKED_REQUESTS"
 grep -q 'POST /api/v15/login/session/' "$REVOKED_REQUESTS"
 kill "$SERVER_PID"
