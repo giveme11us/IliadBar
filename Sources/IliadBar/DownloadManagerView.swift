@@ -64,6 +64,7 @@ struct DownloadManagerView: View {
         List(filteredTasks, selection: $selection) { task in
           DownloadListRow(task: task)
             .tag(task.id)
+            .onTapGesture(count: 2) { Task { await model.revealInFiles(task) } }
             .contextMenu { taskMenu(task) }
         }
         .searchable(text: $search, prompt: "Cerca download")
@@ -182,6 +183,9 @@ struct DownloadManagerView: View {
     if task.hasFailed {
       Button("Riprova") { Task { await model.retry(task) } }
     }
+    if task.downloadDirectory?.isEmpty == false {
+      Button("Mostra nei File") { Task { await model.revealInFiles(task) } }
+    }
     Divider()
     Button("Rimuovi…", role: .destructive) { pendingRemoval = task }
   }
@@ -272,6 +276,7 @@ private struct DownloadDetailView: View {
         .font(.title2.weight(.semibold))
         .lineLimit(2)
       ProgressView(value: model.detailTask?.progress ?? task.progress)
+        .tint(IliadTint.downloadStatus(task.status))
       HStack(spacing: 20) {
         metric("Ricevuti", Format.bytes(model.detailTask?.rxBytes ?? task.rxBytes ?? 0))
         metric("Dimensione", Format.bytes(model.detailTask?.size ?? task.size ?? 0))
@@ -284,6 +289,9 @@ private struct DownloadDetailView: View {
         }
         if task.hasFailed {
           Button("Riprova") { Task { await model.retry(task) } }
+        }
+        if task.downloadDirectory?.isEmpty == false {
+          Button("Mostra nei File") { Task { await model.revealInFiles(task) } }
         }
         Menu("Priorità: \(DownloadPresentation.priorityLabel(task.ioPriority))") {
           ForEach(["low", "normal", "high"], id: \.self) { priority in
@@ -310,7 +318,7 @@ private struct DownloadDetailView: View {
       HStack {
         VStack(alignment: .leading, spacing: 3) {
           Text(file.name).lineLimit(1)
-          ProgressView(value: file.progress)
+          ProgressView(value: file.progress).tint(IliadPalette.blue)
         }
         Text(Format.bytes(file.size ?? 0))
           .font(.caption.monospacedDigit())
@@ -361,23 +369,54 @@ private struct DownloadDetailView: View {
   }
 
   private var pieces: some View {
-    VStack(spacing: 16) {
+    VStack(alignment: .leading, spacing: 14) {
       if let pieces = model.detailPieces, !pieces.isEmpty {
         let completed = pieces.filter { $0 == "X" }.count
         ProgressView(value: Double(completed), total: Double(pieces.count))
+          .tint(IliadPalette.blue)
         Text("\(completed) di \(pieces.count) blocchi completati")
           .font(.callout.monospacedDigit())
-        Text(pieces)
-          .font(.system(size: 8, design: .monospaced))
-          .foregroundStyle(.secondary)
-          .lineLimit(8)
-          .textSelection(.enabled)
+        PiecesGrid(pieces: pieces)
       } else {
         ContentUnavailableView("Stato blocchi non disponibile", systemImage: "square.grid.3x3")
       }
     }
     .padding(24)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+  }
+}
+
+/// Mappa dei blocchi come griglia: un Canvas unico regge decine di migliaia
+/// di celle dove altrettante view SwiftUI non arriverebbero.
+private struct PiecesGrid: View {
+  let pieces: String
+  private let cell: CGFloat = 6
+
+  var body: some View {
+    let states = Array(pieces)
+    GeometryReader { geometry in
+      let columns = max(1, Int(geometry.size.width / cell))
+      let rows = Int(ceil(Double(states.count) / Double(columns)))
+      ScrollView {
+        Canvas { context, _ in
+          for (index, state) in states.enumerated() {
+            let rect = CGRect(
+              x: CGFloat(index % columns) * cell + 0.5,
+              y: CGFloat(index / columns) * cell + 0.5,
+              width: cell - 1,
+              height: cell - 1
+            )
+            context.fill(
+              Path(roundedRect: rect, cornerRadius: 1),
+              with: .color(state == "X" ? IliadPalette.blue : Color.primary.opacity(0.14))
+            )
+          }
+        }
+        .frame(height: CGFloat(rows) * cell)
+      }
+    }
+    .frame(maxWidth: .infinity, minHeight: 140, maxHeight: 280)
+    .accessibilityLabel("Mappa dei blocchi scaricati")
   }
 }
 

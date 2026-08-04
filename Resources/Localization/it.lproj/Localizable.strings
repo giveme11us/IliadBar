@@ -358,3 +358,8 @@
 "Usa questa iliadbox" = "Usa questa iliadbox";
 "Wi‑Fi attivo" = "Wi‑Fi attivo";
 "Wi‑Fi disattivo" = "Wi‑Fi disattivo";
+
+/* Ponte Download → File e mappa blocchi */
+"La box non indica la cartella di questo download" = "La box non indica la cartella di questo download";
+"Mappa dei blocchi scaricati" = "Mappa dei blocchi scaricati";
+"Mostra nei File" = "Mostra nei File";

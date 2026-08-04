@@ -122,6 +122,22 @@ struct DownloadsConfigResult: Decodable {
 extension IliadboxClient {
   public static var rootPathB64: String { Data("/".utf8).base64EncodedString() }
 
+  /// Scompone un path base64 nelle sue tappe ("/SSD/Download" → SSD, Download),
+  /// ognuna col proprio path base64: serve a ricostruire una navigazione
+  /// completa quando si atterra direttamente in una sottocartella.
+  public static func pathSteps(forPathB64 pathB64: String) -> [(name: String, pathB64: String)] {
+    guard let data = Data(base64Encoded: pathB64),
+      let path = String(data: data, encoding: .utf8)
+    else { return [] }
+    var current = ""
+    var steps: [(name: String, pathB64: String)] = []
+    for component in path.split(separator: "/") {
+      current += "/\(component)"
+      steps.append((String(component), Data(current.utf8).base64EncodedString()))
+    }
+    return steps
+  }
+
   /// Cartella di destinazione dei download configurata sulla box (path base64).
   public func downloadsDirectory() async throws -> String {
     let config: DownloadsConfigResult = try await authedCall("downloads/config/")

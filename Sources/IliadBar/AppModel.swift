@@ -459,8 +459,35 @@ final class AppModel: ObservableObject {
     filesLoading = true
     defer { filesLoading = false }
     let rootB64 = IliadboxClient.rootPathB64
-    crumbs = [Crumb(name: "Archivi", pathB64: rootB64)]
+    crumbs = [Self.rootCrumb]
     await loadEntries(pathB64: rootB64)
+  }
+
+  static var rootCrumb: Crumb {
+    Crumb(
+      name: NSLocalizedString("Archivi", comment: "Files root"),
+      pathB64: IliadboxClient.rootPathB64)
+  }
+
+  /// Porta la sezione File nella cartella di un download: è il ponte fra le
+  /// due sezioni della finestra unica (PRD-UX §4).
+  func revealInFiles(_ task: DownloadTask) async {
+    guard let pathB64 = task.downloadDirectory, !pathB64.isEmpty else {
+      reportError(appString("La box non indica la cartella di questo download"))
+      return
+    }
+    crumbs = Self.crumbs(forPathB64: pathB64)
+    mainWindowSection = .file
+    await loadEntries(pathB64: pathB64)
+  }
+
+  /// Ricostruisce le briciole da un path base64 ("/SSD/Download"), così la
+  /// navigazione a ritroso funziona anche arrivando da un download.
+  static func crumbs(forPathB64 pathB64: String) -> [Crumb] {
+    [rootCrumb]
+      + IliadboxClient.pathSteps(forPathB64: pathB64).map {
+        Crumb(name: $0.name, pathB64: $0.pathB64)
+      }
   }
 
   func enter(_ entry: FsEntry) async {

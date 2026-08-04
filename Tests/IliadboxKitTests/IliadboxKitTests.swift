@@ -71,6 +71,22 @@ final class IliadboxKitTests: XCTestCase {
     XCTAssertTrue(config.boxes.isEmpty)
   }
 
+  func testPathStepsRebuildEveryFolderOfABase64Path() {
+    let pathB64 = Data("/SSD/Download/Film".utf8).base64EncodedString()
+    let steps = IliadboxClient.pathSteps(forPathB64: pathB64)
+    XCTAssertEqual(steps.map(\.name), ["SSD", "Download", "Film"])
+    XCTAssertEqual(
+      steps.map(\.pathB64),
+      ["/SSD", "/SSD/Download", "/SSD/Download/Film"].map {
+        Data($0.utf8).base64EncodedString()
+      })
+  }
+
+  func testPathStepsAreEmptyForRootOrInvalidInput() {
+    XCTAssertTrue(IliadboxClient.pathSteps(forPathB64: IliadboxClient.rootPathB64).isEmpty)
+    XCTAssertTrue(IliadboxClient.pathSteps(forPathB64: "non-base64!!").isEmpty)
+  }
+
   func testPreferencesDecodeDefaultsGranularNotificationFlags() throws {
     let data = Data(
       #"{"idleRefreshSeconds":30,"activeRefreshSeconds":5,"notificationsEnabled":false}"#.utf8)

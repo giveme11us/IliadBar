@@ -389,3 +389,8 @@
 "TROVATE SULLA RETE" = "FOUND ON THE NETWORK";
 "Usa la credenziale salvata" = "Use the saved credential";
 "Usa questa iliadbox" = "Use this iliadbox";
+
+/* Downloads → Files bridge and pieces map */
+"La box non indica la cartella di questo download" = "The box does not report a folder for this download";
+"Mappa dei blocchi scaricati" = "Map of downloaded pieces";
+"Mostra nei File" = "Show in Files";
