@@ -94,7 +94,11 @@ struct DownloadManagerView: View {
             pendingRemoval = task
           }
           .id(task.id)
-          .task { await model.loadDownloadDetails(task) }
+          .task {
+            await model.loadDownloadDetails(task)
+            // Lo spazio libero serve a spiegare un eventuale disco pieno.
+            if task.hasFailed { await model.refreshStorage() }
+          }
         } else {
           ContentUnavailableView(
             "Seleziona un download",
@@ -299,6 +303,21 @@ private struct DownloadDetailView: View {
         .lineLimit(2)
       ProgressView(value: model.detailTask?.progress ?? task.progress)
         .tint(IliadTint.downloadStatus(task.status))
+      if let failure = failureNote {
+        HStack(alignment: .top, spacing: 8) {
+          Image(systemName: "exclamationmark.triangle.fill")
+            .foregroundStyle(IliadPalette.red)
+          Text(failure)
+            .fixedSize(horizontal: false, vertical: true)
+          Spacer(minLength: 0)
+        }
+        .font(.callout)
+        .padding(10)
+        .background(
+          RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(IliadPalette.red.opacity(0.10))
+        )
+      }
       HStack(spacing: 20) {
         metric("Ricevuti", Format.bytes(model.detailTask?.rxBytes ?? task.rxBytes ?? 0))
         metric("Dimensione", Format.bytes(model.detailTask?.size ?? task.size ?? 0))
@@ -326,6 +345,25 @@ private struct DownloadDetailView: View {
         Button("Rimuovi…", role: .destructive, action: requestRemoval)
       }
     }
+  }
+
+  /// Perché il download è fermo, con i numeri quando servono: un "Riprova"
+  /// su un disco pieno non può che fallire di nuovo.
+  private var failureNote: String? {
+    let current = model.detailTask ?? task
+    guard current.hasFailed, let code = current.error, code != "none" else { return nil }
+    if code == "disk_full" {
+      let needed = model.detailFiles.filter { $0.priority != "no_dl" }
+        .compactMap(\.size).reduce(0, +)
+      return String(
+        format: NSLocalizedString(
+          "Disco della box pieno: servono %@, liberi %@", comment: "Download failure"),
+        Format.bytes(needed > 0 ? needed : (current.size ?? 0)),
+        Format.bytes(model.storageFreeBytes))
+    }
+    return String(
+      format: NSLocalizedString("Download fermo: %@", comment: "Download failure"),
+      DownloadPresentation.reason(code))
   }
 
   private func metric(_ label: LocalizedStringKey, _ value: String) -> some View {

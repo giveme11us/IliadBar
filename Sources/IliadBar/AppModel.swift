@@ -478,9 +478,45 @@ final class AppModel: ObservableObject {
     do {
       _ = try await client.retryDownload(id: task.id)
       await refresh()
+      // La box accetta il comando e rimette subito il task in errore: senza
+      // questo controllo il bottone sembrerebbe non fare nulla.
+      if let current = tasks.first(where: { $0.id == task.id }), current.hasFailed {
+        await explainFailedRetry(current)
+      }
     } catch {
       reportError(error)
     }
+  }
+
+  private func explainFailedRetry(_ task: DownloadTask) async {
+    guard let code = task.error, code != "none" else {
+      emitFeedback(appString("Il download non è ripartito"), style: .error)
+      return
+    }
+    if code == "disk_full" {
+      await refreshStorage()
+      let needed = selectedSize(for: task)
+      reportError(
+        appString(
+          "Il disco della box è pieno: servono %@, liberi %@",
+          Format.bytes(needed), Format.bytes(storageFreeBytes)))
+    } else {
+      reportError(appString("Il download non è ripartito: %@", DownloadPresentation.reason(code)))
+    }
+  }
+
+  /// Spazio libero su tutte le partizioni degli archivi collegati alla box.
+  var storageFreeBytes: Int64 {
+    storageDisks.flatMap { $0.partitions ?? [] }.compactMap(\.freeBytes).reduce(0, +)
+  }
+
+  /// Quanto occuperebbe il download: la somma dei soli file selezionati se il
+  /// dettaglio è caricato, altrimenti la dimensione dichiarata dal task.
+  private func selectedSize(for task: DownloadTask) -> Int64 {
+    guard detailTask?.id == task.id, !detailFiles.isEmpty else { return task.size ?? 0 }
+    let selected = detailFiles.filter { $0.priority != "no_dl" }
+    guard !selected.isEmpty else { return task.size ?? 0 }
+    return selected.compactMap(\.size).reduce(0, +)
   }
 
   func setPriority(_ priority: String, for task: DownloadTask) async {

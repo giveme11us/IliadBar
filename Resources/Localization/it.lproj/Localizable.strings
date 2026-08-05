@@ -458,3 +458,10 @@
 "la sorgente non risponde" = "la sorgente non risponde";
 "tempo scaduto" = "tempo scaduto";
 "nessun disco collegato alla box" = "nessun disco collegato alla box";
+
+/* Download fermo: motivo e spazio */
+"Disco della box pieno: servono %@, liberi %@" = "Disco della box pieno: servono %@, liberi %@";
+"Download fermo: %@" = "Download fermo: %@";
+"Il download non è ripartito" = "Il download non è ripartito";
+"Il download non è ripartito: %@" = "Il download non è ripartito: %@";
+"Il disco della box è pieno: servono %@, liberi %@" = "Il disco della box è pieno: servono %@, liberi %@";

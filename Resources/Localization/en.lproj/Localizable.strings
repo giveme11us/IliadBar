@@ -489,3 +489,10 @@
 "la sorgente non risponde" = "the source is not responding";
 "tempo scaduto" = "timed out";
 "nessun disco collegato alla box" = "no disk connected to the box";
+
+/* Stopped download: reason and space */
+"Disco della box pieno: servono %@, liberi %@" = "Box disk full: %@ needed, %@ free";
+"Download fermo: %@" = "Download stopped: %@";
+"Il download non è ripartito" = "The download did not restart";
+"Il download non è ripartito: %@" = "The download did not restart: %@";
+"Il disco della box è pieno: servono %@, liberi %@" = "The box disk is full: %@ needed, %@ free";
