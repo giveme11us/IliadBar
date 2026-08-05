@@ -74,6 +74,7 @@ final class AppModel: ObservableObject {
   @Published var detailPeers: [DownloadPeer] = []
   @Published var detailPieces: String?
   @Published var detailLoading = false
+  @Published private(set) var detailFilesFailed = false
   // Box (tab stats)
   @Published var connection: ConnectionStatus?
   @Published var system: SystemInfo?
@@ -504,6 +505,9 @@ final class AppModel: ObservableObject {
       taskCall, filesCall, trackersCall, peersCall, piecesCall
     )
     if let freshTask { detailTask = freshTask }
+    // `nil` significa chiamata fallita, `[]` che la box non ha (ancora) file:
+    // due situazioni diverse, che la UI deve poter raccontare diversamente.
+    detailFilesFailed = files == nil
     detailFiles = files ?? []
     detailTrackers = trackers ?? []
     detailPeers = peers ?? []

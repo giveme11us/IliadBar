@@ -35,7 +35,27 @@ enum DownloadPresentation {
       return NSLocalizedString("errore", comment: "Download status")
     }
     return String(
-      format: NSLocalizedString("errore: %@", comment: "Download status with detail"), error)
+      format: NSLocalizedString("errore: %@", comment: "Download status with detail"),
+      reason(error))
+  }
+
+  /// I codici della box sono per le macchine: "disk_full" a schermo non è una
+  /// spiegazione. Quelli non riconosciuti restano tali e quali.
+  static func reason(_ code: String) -> String {
+    switch code {
+    case "disk_full": NSLocalizedString("disco pieno", comment: "Download error")
+    case "unknown", "internal":
+      NSLocalizedString("errore interno della box", comment: "Download error")
+    case "parse_error", "invalid_file":
+      NSLocalizedString("file torrent non valido", comment: "Download error")
+    case "invalid_url": NSLocalizedString("indirizzo non valido", comment: "Download error")
+    case "http_error", "connection_refused":
+      NSLocalizedString("la sorgente non risponde", comment: "Download error")
+    case "timeout": NSLocalizedString("tempo scaduto", comment: "Download error")
+    case "missing_disk", "no_disk":
+      NSLocalizedString("nessun disco collegato alla box", comment: "Download error")
+    default: code
+    }
   }
 }
 

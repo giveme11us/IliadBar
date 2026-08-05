@@ -71,6 +71,36 @@ final class IliadboxKitTests: XCTestCase {
     XCTAssertTrue(config.boxes.isEmpty)
   }
 
+  /// Payload reale di ibxgw8-r1 (fw 4.9.18.2), anonimizzato: `task_id` arriva
+  /// come stringa e c'è un campo `path` che il modello non conosce.
+  func testDownloadFilesDecodeRealFirmwarePayload() throws {
+    let json = """
+      {"success":true,"result":[{
+        "path":"/SSD/Download/Esempio.S01E01.mkv",
+        "id":"6-0",
+        "task_id":"6",
+        "filepath":"L1NTRC9Eb3dubG9hZC9Fc2VtcGlvLlMwMUUwMS5ta3Y=",
+        "preview_url":"http://192.0.2.10:11938/api/latest/btpreview/6/abcdef",
+        "mimetype":"video/x-matroska",
+        "name":"Esempio.S01E01.mkv",
+        "rx":6411734761,
+        "status":"done",
+        "priority":"normal",
+        "error":"none",
+        "size":6411734761
+      }]}
+      """
+    let response = try JSONDecoder().decode(
+      FbxResponse<[DownloadFile]>.self, from: Data(json.utf8))
+    let file = try XCTUnwrap(response.result?.first)
+    XCTAssertEqual(file.id, "6-0")
+    XCTAssertEqual(file.taskID?.intValue, 6)
+    XCTAssertEqual(file.name, "Esempio.S01E01.mkv")
+    XCTAssertEqual(file.size, 6_411_734_761)
+    XCTAssertEqual(file.received, 6_411_734_761)
+    XCTAssertEqual(file.progress, 1)
+  }
+
   func testOnboardingIsConsideredDoneForConfigurationsThatAlreadyHaveABox() throws {
     let upgraded = Data(
       #"{"schemaVersion":3,"activeBoxID":"home","boxes":[{"id":"home","name":"Casa","baseURL":"http://box/api/v15/"}]}"#

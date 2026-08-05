@@ -444,3 +444,17 @@
 "Condivisione non disponibile" = "Condivisione non disponibile";
 "I link creati dai file compaiono qui." = "I link creati dai file compaiono qui.";
 "Questa iliadbox non espone i link di condivisione." = "Questa iliadbox non espone i link di condivisione.";
+
+/* Stati vuoti del dettaglio download ed errori della box */
+"Elenco dei file non disponibile" = "Elenco dei file non disponibile";
+"La box non ha risposto per questo download." = "La box non ha risposto per questo download.";
+"In attesa dei metadati" = "In attesa dei metadati";
+"I file compariranno quando la box avrà recuperato i metadati del torrent dai peer." = "I file compariranno quando la box avrà recuperato i metadati del torrent dai peer.";
+"Questo download non contiene file." = "Questo download non contiene file.";
+"disco pieno" = "disco pieno";
+"errore interno della box" = "errore interno della box";
+"file torrent non valido" = "file torrent non valido";
+"indirizzo non valido" = "indirizzo non valido";
+"la sorgente non risponde" = "la sorgente non risponde";
+"tempo scaduto" = "tempo scaduto";
+"nessun disco collegato alla box" = "nessun disco collegato alla box";

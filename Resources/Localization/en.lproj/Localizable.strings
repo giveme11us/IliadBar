@@ -475,3 +475,17 @@
 "Condivisione non disponibile" = "Sharing unavailable";
 "I link creati dai file compaiono qui." = "Links created from files appear here.";
 "Questa iliadbox non espone i link di condivisione." = "This iliadbox does not expose share links.";
+
+/* Download detail empty states and box errors */
+"Elenco dei file non disponibile" = "File list unavailable";
+"La box non ha risposto per questo download." = "The box did not answer for this download.";
+"In attesa dei metadati" = "Waiting for metadata";
+"I file compariranno quando la box avrà recuperato i metadati del torrent dai peer." = "Files appear once the box has fetched the torrent metadata from peers.";
+"Questo download non contiene file." = "This download has no files.";
+"disco pieno" = "disk full";
+"errore interno della box" = "internal box error";
+"file torrent non valido" = "invalid torrent file";
+"indirizzo non valido" = "invalid address";
+"la sorgente non risponde" = "the source is not responding";
+"tempo scaduto" = "timed out";
+"nessun disco collegato alla box" = "no disk connected to the box";

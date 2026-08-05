@@ -357,9 +357,42 @@ private struct DownloadDetailView: View {
     }
     .overlay {
       if model.detailFiles.isEmpty && !model.detailLoading {
-        ContentUnavailableView("Nessun file", systemImage: "doc")
+        filesEmptyState
       }
     }
+  }
+
+  /// Tre situazioni che finivano tutte in "Nessun file": lettura fallita,
+  /// metadati del torrent non ancora arrivati, elenco davvero vuoto.
+  @ViewBuilder
+  private var filesEmptyState: some View {
+    if model.detailFilesFailed {
+      ContentUnavailableView {
+        Label("Elenco dei file non disponibile", systemImage: "exclamationmark.triangle")
+      } description: {
+        Text("La box non ha risposto per questo download.")
+      } actions: {
+        Button("Riprova") { Task { await model.loadDownloadDetails(task) } }
+      }
+    } else if awaitingMetadata {
+      ContentUnavailableView(
+        "In attesa dei metadati",
+        systemImage: "arrow.triangle.2.circlepath",
+        description: Text(
+          "I file compariranno quando la box avrà recuperato i metadati del torrent dai peer.")
+      )
+    } else {
+      ContentUnavailableView(
+        "Nessun file", systemImage: "doc",
+        description: Text("Questo download non contiene file."))
+    }
+  }
+
+  /// Un magnet appena aggiunto non conosce ancora i propri file: la box li
+  /// scopre solo dopo aver recuperato i metadati dai peer.
+  private var awaitingMetadata: Bool {
+    let current = model.detailTask ?? task
+    return current.type == "bt" && (current.size ?? 0) == 0 && !current.isFinished
   }
 
   private var trackers: some View {
