@@ -144,9 +144,13 @@ struct OnboardingView: View {
 
   private var welcome: some View {
     VStack(alignment: .leading, spacing: 18) {
-      Image(nsImage: NSApp.applicationIconImage)
-        .resizable()
-        .frame(width: 84, height: 84)
+      HStack(alignment: .bottom, spacing: 18) {
+        Image(nsImage: NSApp.applicationIconImage)
+          .resizable()
+          .frame(width: 76, height: 76)
+        IliadboxMark(state: .online)
+          .frame(width: 132)
+      }
       Text("Benvenuto in IliadBar")
         .font(.system(size: 26, weight: .semibold))
       Text("La tua iliadbox nella barra dei menu: stato della linea, download, file e rete.")
@@ -210,10 +214,8 @@ struct OnboardingView: View {
             model.useDiscoveredBox(box)
           } label: {
             HStack(spacing: 12) {
-              Image(systemName: "wifi.router.fill")
-                .font(.title3)
-                .foregroundStyle(IliadPalette.red)
-                .frame(width: 28)
+              IliadboxMark()
+                .frame(width: 40)
               VStack(alignment: .leading, spacing: 2) {
                 Text(box.name).fontWeight(.medium)
                 Text(DiscoveryPresentation.detailLabel(box))

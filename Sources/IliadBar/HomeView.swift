@@ -204,27 +204,45 @@ struct HomeView: View {
 
   private var boxCard: some View {
     GroupBox {
-      VStack(alignment: .leading, spacing: 7) {
-        if let system = model.system {
-          if let name = system.modelName {
-            LabeledContent("Modello", value: name)
-          }
-          if let firmware = system.firmwareVersion {
-            LabeledContent("Firmware", value: firmware)
-          }
-        }
-        if let profile = model.profiles.first(where: { $0.id == model.activeProfileID }) {
-          if let api = profile.apiVersion {
-            LabeledContent("API", value: api)
-          }
-        }
+      HStack(alignment: .top, spacing: 16) {
+        IliadboxMark(state: deviceState)
+          .frame(width: 96)
+        boxFacts
+        Spacer(minLength: 0)
       }
-      .font(.footnote)
       .padding(6)
-      .frame(maxWidth: .infinity, alignment: .leading)
     } label: {
       Text(activeBoxName).fontWeight(.semibold)
     }
+  }
+
+  private var deviceState: IliadboxMark.State? {
+    guard model.paired else { return nil }
+    return switch model.availability {
+    case .online: .online
+    case .connecting, .stale: .connecting
+    case .offline, .unconfigured: .offline
+    }
+  }
+
+  private var boxFacts: some View {
+    VStack(alignment: .leading, spacing: 7) {
+      if let system = model.system {
+        if let name = system.modelName {
+          LabeledContent("Modello", value: name)
+        }
+        if let firmware = system.firmwareVersion {
+          LabeledContent("Firmware", value: firmware)
+        }
+      }
+      if let profile = model.profiles.first(where: { $0.id == model.activeProfileID }) {
+        if let api = profile.apiVersion {
+          LabeledContent("API", value: api)
+        }
+      }
+    }
+    .font(.footnote)
+    .frame(maxWidth: 260, alignment: .leading)
   }
 
   private var activeBoxName: String {

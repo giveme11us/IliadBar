@@ -209,14 +209,8 @@ struct PanelView: View {
 
   private var identityHeader: some View {
     HStack(spacing: 10) {
-      ZStack {
-        RoundedRectangle(cornerRadius: 8, style: .continuous)
-          .fill(IliadPalette.red)
-        Image(systemName: "wifi.router.fill")
-          .font(.system(size: 16, weight: .semibold))
-          .foregroundStyle(.white)
-      }
-      .frame(width: 34, height: 34)
+      IliadboxMark(state: deviceState)
+        .frame(width: 40)
 
       VStack(alignment: .leading, spacing: 1) {
         Text(activeBoxName)
@@ -382,14 +376,8 @@ struct PanelView: View {
   private var pairingSection: some View {
     VStack(alignment: .leading, spacing: 12) {
       HStack(spacing: 10) {
-        ZStack {
-          RoundedRectangle(cornerRadius: 9, style: .continuous)
-            .fill(IliadPalette.red.opacity(0.12))
-          Image(systemName: "wifi.router")
-            .font(.system(size: 21, weight: .medium))
-            .foregroundStyle(IliadPalette.red)
-        }
-        .frame(width: 42, height: 42)
+        IliadboxMark()
+          .frame(width: 52)
         VStack(alignment: .leading, spacing: 2) {
           Text("Collega la tua iliadbox")
             .font(.system(size: 16, weight: .semibold))
@@ -545,6 +533,15 @@ struct PanelView: View {
         .keyboardShortcut("q")
     }
     .foregroundStyle(.secondary)
+  }
+
+  private var deviceState: IliadboxMark.State? {
+    guard model.paired else { return nil }
+    return switch model.availability {
+    case .online: .online
+    case .connecting, .stale: .connecting
+    case .offline, .unconfigured: .offline
+    }
   }
 
   private var statusColor: Color {
