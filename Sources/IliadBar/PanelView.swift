@@ -60,6 +60,8 @@ struct PanelView: View {
         .padding(.vertical, 9)
     }
     .frame(width: 380)
+    // Velatura dell'identità sopra il materiale del popover.
+    .background(alignment: .top) { IliadPanelBackdrop() }
     .task { await model.refresh() }
   }
 
@@ -214,7 +216,7 @@ struct PanelView: View {
 
       VStack(alignment: .leading, spacing: 1) {
         Text(activeBoxName)
-          .font(.system(size: 15, weight: .semibold))
+          .font(.iliadTitle)
         Text(model.system?.modelName ?? "iliadbox")
           .font(.caption)
           .foregroundStyle(.secondary)
@@ -234,9 +236,7 @@ struct PanelView: View {
   private func trafficSection(_ connection: ConnectionStatus) -> some View {
     VStack(alignment: .leading, spacing: 10) {
       HStack {
-        Text("TRAFFICO IN TEMPO REALE")
-          .font(.caption2.weight(.semibold))
-          .foregroundStyle(.secondary)
+        Text("Traffico in tempo reale").sectionLabel()
         Spacer()
         if let media = connection.media {
           Text(media.uppercased())
@@ -307,7 +307,7 @@ struct PanelView: View {
       HStack {
         VStack(alignment: .leading, spacing: 1) {
           Text("Download")
-            .font(.system(size: 16, weight: .semibold))
+            .font(.iliadTitle)
           Text(downloadSummary)
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -380,7 +380,7 @@ struct PanelView: View {
           .frame(width: 52)
         VStack(alignment: .leading, spacing: 2) {
           Text("Collega la tua iliadbox")
-            .font(.system(size: 16, weight: .semibold))
+            .font(.iliadTitle)
           Text("I download, i file e la rete restano sul tuo Mac.")
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -462,9 +462,7 @@ struct PanelView: View {
       }
     } else {
       VStack(alignment: .leading, spacing: 5) {
-        Text("TROVATE SULLA RETE")
-          .font(.caption2.weight(.semibold))
-          .foregroundStyle(.secondary)
+        Text("Trovate sulla rete").sectionLabel()
         ForEach(model.discoveredBoxes) { box in
           Button {
             model.useDiscoveredBox(box)
@@ -573,7 +571,7 @@ private struct TrafficMetric: View {
           .foregroundStyle(.secondary)
       }
       Text("\(Format.bytes(value))/s")
-        .font(.system(size: 17, weight: .semibold, design: .rounded).monospacedDigit())
+        .font(.iliadMetric)
         .lineLimit(1)
         .minimumScaleFactor(0.8)
       ProgressBarView(

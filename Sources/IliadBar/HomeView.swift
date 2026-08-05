@@ -36,7 +36,7 @@ struct HomeView: View {
   // MARK: Connessione
 
   private var connectionCard: some View {
-    GroupBox {
+    card("Connessione") {
       if let connection = model.connection {
         VStack(alignment: .leading, spacing: 12) {
           HStack(spacing: 8) {
@@ -78,7 +78,6 @@ struct HomeView: View {
             }
           }
         }
-        .padding(6)
       } else {
         HStack {
           Spacer()
@@ -88,8 +87,6 @@ struct HomeView: View {
         }
         .padding(.vertical, 14)
       }
-    } label: {
-      Text("Connessione").fontWeight(.semibold)
     }
   }
 
@@ -98,7 +95,7 @@ struct HomeView: View {
       HStack(spacing: 5) {
         Image(systemName: symbol).font(.caption.weight(.bold)).foregroundStyle(tint)
         Text("\(Format.bytes(value ?? 0))/s")
-          .font(.system(.title3, design: .rounded).weight(.semibold).monospacedDigit())
+          .font(.iliadMetric)
       }
       ProgressBarView(
         percent: ConnectionStatus.usagePercent(rate: value, bandwidth: bandwidth), tint: tint
@@ -170,7 +167,7 @@ struct HomeView: View {
   // MARK: Permessi
 
   private var permissionsCard: some View {
-    GroupBox {
+    card("Permessi") {
       VStack(alignment: .leading, spacing: 7) {
         permissionRow("Impostazioni rete", granted: model.networkSettingsAllowed)
         permissionRow("Controllo parentale", granted: model.parentalControlAllowed)
@@ -179,10 +176,7 @@ struct HomeView: View {
             .font(.caption2).foregroundStyle(.tertiary)
         }
       }
-      .padding(6)
       .frame(maxWidth: .infinity, alignment: .leading)
-    } label: {
-      Text("Permessi").fontWeight(.semibold)
     }
   }
 
@@ -203,16 +197,13 @@ struct HomeView: View {
   // MARK: Box
 
   private var boxCard: some View {
-    GroupBox {
+    card(LocalizedStringKey(activeBoxName)) {
       HStack(alignment: .top, spacing: 16) {
         IliadboxMark(state: deviceState)
           .frame(width: 96)
         boxFacts
         Spacer(minLength: 0)
       }
-      .padding(6)
-    } label: {
-      Text(activeBoxName).fontWeight(.semibold)
     }
   }
 
@@ -251,24 +242,36 @@ struct HomeView: View {
 
   // MARK: Card con destinazione
 
+  /// Card con titolo: stesso contenitore per tutta la Home.
+  private func card(
+    _ title: LocalizedStringKey, action: (() -> Void)? = nil,
+    @ViewBuilder content: () -> some View
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 10) {
+      HStack {
+        Text(title).font(.iliadTitle)
+        Spacer()
+        if let action {
+          Button("Apri", action: action)
+            .buttonStyle(.plain)
+            .font(.caption)
+            .foregroundStyle(IliadPalette.red)
+        }
+      }
+      content()
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .iliadCard()
+  }
+
   private func sectionCard(
     title: LocalizedStringKey, destination: MainSection, @ViewBuilder content: () -> some View
   ) -> some View {
-    GroupBox {
+    card(title, action: { model.mainWindowSection = destination }) {
       VStack(alignment: .leading, spacing: 8) {
         content()
       }
-      .padding(6)
       .frame(maxWidth: .infinity, alignment: .leading)
-    } label: {
-      HStack {
-        Text(title).fontWeight(.semibold)
-        Spacer()
-        Button("Apri") { model.mainWindowSection = destination }
-          .buttonStyle(.plain)
-          .font(.caption)
-          .foregroundStyle(IliadPalette.red)
-      }
     }
   }
 }
