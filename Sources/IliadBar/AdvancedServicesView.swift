@@ -305,6 +305,7 @@ struct AdvancedServicesView: View {
           unavailablePage("Registro chiamate", icon: "phone")
         }
       }
+      .frame(minWidth: 260, maxWidth: .infinity, maxHeight: .infinity)
       VStack(alignment: .leading, spacing: 0) {
         Text("Contatti").font(.headline).padding()
         if model.advancedCapabilities.contains(.contacts) {
@@ -315,6 +316,7 @@ struct AdvancedServicesView: View {
           unavailablePage("Contatti", icon: "person.crop.circle")
         }
       }
+      .frame(minWidth: 220, maxWidth: .infinity, maxHeight: .infinity)
     }
   }
 

@@ -60,6 +60,7 @@ struct DownloadManagerView: View {
           ForEach(DownloadFilter.allCases) { Text($0.title).tag($0) }
         }
         .pickerStyle(.segmented)
+        .labelsHidden()
         .padding(10)
 
         List(filteredTasks, selection: $selection) { task in
@@ -81,7 +82,9 @@ struct DownloadManagerView: View {
           }
         }
       }
-      .frame(minWidth: 280, idealWidth: 330, maxWidth: 460)
+      // maxHeight esplicito: HSplitView dà ai figli la loro altezza
+      // intrinseca, che lascerebbe il contenuto sospeso a metà colonna.
+      .frame(minWidth: 280, idealWidth: 330, maxWidth: 460, maxHeight: .infinity)
 
       Group {
         if let task = selectedTask {
@@ -98,7 +101,7 @@ struct DownloadManagerView: View {
           )
         }
       }
-      .frame(minWidth: 380, maxWidth: .infinity)
+      .frame(minWidth: 380, maxWidth: .infinity, maxHeight: .infinity)
     }
     // Trascinare un .torrent qui equivale ad "Apri torrent o NZB".
     .dropDestination(for: URL.self) { urls, _ in
