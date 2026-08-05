@@ -357,7 +357,8 @@ private struct DownloadDetailView: View {
         .compactMap(\.size).reduce(0, +)
       return String(
         format: NSLocalizedString(
-          "Disco della box pieno: servono %@, liberi %@", comment: "Download failure"),
+          "Disco della box pieno: servono %@, liberi %@. Un download fermo occupa comunque lo spazio già riservato: rimuovilo con i suoi file per liberarlo.",
+          comment: "Download failure"),
         Format.bytes(needed > 0 ? needed : (current.size ?? 0)),
         Format.bytes(model.storageFreeBytes))
     }

@@ -496,3 +496,5 @@
 "Il download non è ripartito" = "The download did not restart";
 "Il download non è ripartito: %@" = "The download did not restart: %@";
 "Il disco della box è pieno: servono %@, liberi %@" = "The box disk is full: %@ needed, %@ free";
+
+"Disco della box pieno: servono %@, liberi %@. Un download fermo occupa comunque lo spazio già riservato: rimuovilo con i suoi file per liberarlo." = "Box disk full: %@ needed, %@ free. A stopped download still holds the space it reserved: remove it with its files to free it.";

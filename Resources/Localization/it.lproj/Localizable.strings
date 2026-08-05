@@ -465,3 +465,5 @@
 "Il download non è ripartito" = "Il download non è ripartito";
 "Il download non è ripartito: %@" = "Il download non è ripartito: %@";
 "Il disco della box è pieno: servono %@, liberi %@" = "Il disco della box è pieno: servono %@, liberi %@";
+
+"Disco della box pieno: servono %@, liberi %@. Un download fermo occupa comunque lo spazio già riservato: rimuovilo con i suoi file per liberarlo." = "Disco della box pieno: servono %@, liberi %@. Un download fermo occupa comunque lo spazio già riservato: rimuovilo con i suoi file per liberarlo.";
