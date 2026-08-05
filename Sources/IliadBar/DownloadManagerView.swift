@@ -322,7 +322,7 @@ private struct DownloadDetailView: View {
         metric("Ricevuti", Format.bytes(model.detailTask?.rxBytes ?? task.rxBytes ?? 0))
         metric("Dimensione", Format.bytes(model.detailTask?.size ?? task.size ?? 0))
         metric("Velocità", "\(Format.bytes(model.detailTask?.rxRate ?? task.rxRate ?? 0))/s")
-        metric("ETA", (model.detailTask?.eta ?? task.eta).map(Format.duration) ?? "—")
+        metric("ETA", DownloadPresentation.etaLabel(model.detailTask ?? task))
       }
       HStack {
         Button(task.status == "stopped" ? "Riprendi" : "Pausa") {

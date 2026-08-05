@@ -21,6 +21,17 @@ enum DownloadPresentation {
     }
   }
 
+  /// Tempo residuo pronto da mostrare: la stima se c'è, altrimenti il motivo
+  /// per cui non c'è.
+  static func etaLabel(_ task: DownloadTask) -> String {
+    if let seconds = task.estimatedSecondsRemaining {
+      return Format.duration(seconds)
+    }
+    if task.isFinished { return "—" }
+    if task.isStalled { return NSLocalizedString("in stallo", comment: "Download ETA") }
+    return "—"
+  }
+
   static func priorityLabel(_ raw: String?) -> String {
     switch raw {
     case "low": NSLocalizedString("bassa", comment: "Download priority")

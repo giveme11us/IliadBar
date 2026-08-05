@@ -52,6 +52,24 @@ public struct DownloadTask: Decodable, Identifiable, Sendable {
 
   public var isFinished: Bool { ["done", "seeding"].contains(status ?? "") }
   public var hasFailed: Bool { status == "error" || (error != nil && error != "none") }
+
+  /// Tempo residuo in secondi, `nil` quando non è stimabile.
+  ///
+  /// La box manda `eta: 0` sia quando mancano zero secondi sia quando non sa
+  /// rispondere, e mostrare quello zero come "0s" significa promettere una
+  /// fine imminente. Se il dato manca lo ricaviamo da byte residui e
+  /// velocità, che abbiamo già.
+  public var estimatedSecondsRemaining: Int64? {
+    if let eta, eta > 0 { return eta }
+    guard let size, let rxBytes, let rxRate, rxRate > 0, size > rxBytes else { return nil }
+    return (size - rxBytes) / rxRate
+  }
+
+  /// In download ma senza traffico: succede senza peer o con la coda ferma.
+  /// È diverso da "lento", e va detto invece di lasciare un tempo vuoto.
+  public var isStalled: Bool {
+    status == "downloading" && (rxRate ?? 0) <= 0 && !isFinished
+  }
 }
 
 public struct DownloadTransition: Equatable, Sendable {

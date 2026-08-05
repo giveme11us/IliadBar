@@ -500,3 +500,5 @@
 "Disco della box pieno: servono %@, liberi %@. Un download fermo occupa comunque lo spazio già riservato: rimuovilo con i suoi file per liberarlo." = "Box disk full: %@ needed, %@ free. A stopped download still holds the space it reserved: remove it with its files to free it.";
 
 "Traffico in tempo reale" = "Live traffic";
+
+"in stallo" = "stalled";

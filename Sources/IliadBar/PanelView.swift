@@ -695,8 +695,10 @@ private struct TaskRow: View {
       if let rate = task.rxRate, rate > 0 {
         parts.append("\(Format.bytes(rate))/s")
       }
-      if let eta = task.eta, eta > 0 {
-        parts.append("~\(Format.duration(eta))")
+      if let seconds = task.estimatedSecondsRemaining {
+        parts.append("~\(Format.duration(seconds))")
+      } else if task.isStalled {
+        parts.append(NSLocalizedString("in stallo", comment: "Download ETA"))
       }
     }
     if let size = task.size, size > 0 {

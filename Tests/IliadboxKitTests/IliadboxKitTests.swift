@@ -71,6 +71,39 @@ final class IliadboxKitTests: XCTestCase {
     XCTAssertTrue(config.boxes.isEmpty)
   }
 
+  /// La box manda `eta: 0` anche quando non sa stimare: il tempo residuo va
+  /// ricavato da byte mancanti e velocità, e resta assente se non è calcolabile.
+  func testEstimatedTimeFallsBackToBytesOverRate() throws {
+    func task(eta: Int64?, size: Int64?, rx: Int64?, rate: Int64?, status: String) throws
+      -> DownloadTask
+    {
+      var object: [String: Any] = ["id": 1, "status": status, "name": "Fixture"]
+      if let eta { object["eta"] = eta }
+      if let size { object["size"] = size }
+      if let rx { object["rx_bytes"] = rx }
+      if let rate { object["rx_rate"] = rate }
+      let data = try JSONSerialization.data(withJSONObject: object)
+      return try JSONDecoder().decode(DownloadTask.self, from: data)
+    }
+
+    // Stima della box: si usa quella.
+    XCTAssertEqual(
+      try task(eta: 120, size: 100, rx: 10, rate: 5, status: "downloading")
+        .estimatedSecondsRemaining, 120)
+    // eta a zero ma traffico in corso: 90 byte mancanti a 3 byte/s.
+    XCTAssertEqual(
+      try task(eta: 0, size: 100, rx: 10, rate: 3, status: "downloading")
+        .estimatedSecondsRemaining, 30)
+    // Nessun traffico: non stimabile, e il task è in stallo.
+    let stalled = try task(eta: 0, size: 100, rx: 10, rate: 0, status: "downloading")
+    XCTAssertNil(stalled.estimatedSecondsRemaining)
+    XCTAssertTrue(stalled.isStalled)
+    // Completato: niente stima e nessuno stallo.
+    let done = try task(eta: 0, size: 100, rx: 100, rate: 0, status: "done")
+    XCTAssertNil(done.estimatedSecondsRemaining)
+    XCTAssertFalse(done.isStalled)
+  }
+
   /// Payload reale di ibxgw8-r1 (fw 4.9.18.2), anonimizzato: `task_id` arriva
   /// come stringa e c'è un campo `path` che il modello non conosce.
   func testDownloadFilesDecodeRealFirmwarePayload() throws {
