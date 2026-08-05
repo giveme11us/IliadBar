@@ -115,17 +115,49 @@ public struct AppConfig: Codable, Sendable {
   public var activeBoxID: String?
   public var boxes: [BoxProfile]
   public var preferences: AppPreferences
+  /// Configurazione iniziale conclusa (o saltata). Assente nei file scritti
+  /// prima della 1.0: chi ha già una box viene considerato a posto.
+  public var onboardingCompleted: Bool
 
   public init(
     schemaVersion: Int = currentSchemaVersion,
     activeBoxID: String? = nil,
     boxes: [BoxProfile] = [],
-    preferences: AppPreferences = AppPreferences()
+    preferences: AppPreferences = AppPreferences(),
+    onboardingCompleted: Bool = false
   ) {
     self.schemaVersion = schemaVersion
     self.activeBoxID = activeBoxID
     self.boxes = boxes
     self.preferences = preferences
+    self.onboardingCompleted = onboardingCompleted
+  }
+
+  enum CodingKeys: String, CodingKey {
+    case schemaVersion, activeBoxID, boxes, preferences, onboardingCompleted
+  }
+
+  public init(from decoder: Decoder) throws {
+    let values = try decoder.container(keyedBy: CodingKeys.self)
+    // Un file legacy (solo baseURL e appToken) non deve essere accettato qui:
+    // decodificarlo come AppConfig vuota salterebbe la migrazione del token.
+    guard values.contains(.schemaVersion) || values.contains(.boxes) else {
+      throw DecodingError.keyNotFound(
+        CodingKeys.schemaVersion,
+        DecodingError.Context(
+          codingPath: decoder.codingPath,
+          debugDescription: "Configurazione in formato legacy"))
+    }
+    schemaVersion =
+      try values.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? Self.currentSchemaVersion
+    activeBoxID = try values.decodeIfPresent(String.self, forKey: .activeBoxID)
+    boxes = try values.decodeIfPresent([BoxProfile].self, forKey: .boxes) ?? []
+    preferences =
+      try values.decodeIfPresent(AppPreferences.self, forKey: .preferences) ?? AppPreferences()
+    // Aggiornamento da una versione precedente: chi ha già una box salvata ha
+    // di fatto concluso la configurazione, e non deve rivederla.
+    onboardingCompleted =
+      try values.decodeIfPresent(Bool.self, forKey: .onboardingCompleted) ?? !boxes.isEmpty
   }
 
   public var activeBox: BoxProfile? {

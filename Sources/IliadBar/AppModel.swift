@@ -120,6 +120,11 @@ final class AppModel: ObservableObject {
   /// Sezione mostrata dalla finestra unica; pannello e scorciatoie la
   /// impostano prima di aprire la finestra (PRD-UX §2).
   @Published var mainWindowSection: MainSection = .home
+  /// La finestra mostra la configurazione iniziale al posto delle sezioni.
+  @Published var showingOnboarding: Bool
+  /// Permessi concessi al token, come li dichiara la box alla creazione
+  /// della sessione.
+  @Published private(set) var permissions: [String: Bool] = [:]
   @Published var paired: Bool
   @Published var pairingInProgress = false
   @Published var credentialActivationInProgress = false
@@ -164,7 +169,62 @@ final class AppModel: ObservableObject {
     preferences = appConfig.preferences
     availability = appConfig.activeBox == nil ? .unconfigured : .connecting
     launchAtLogin = Bundle.main.bundleIdentifier != nil && SMAppService.mainApp.status == .enabled
+    showingOnboarding = !appConfig.onboardingCompleted
     startDiscovery()
+  }
+
+  // MARK: Configurazione iniziale
+
+  /// Conclusa o saltata: in entrambi i casi non si ripresenta da sola.
+  func completeOnboarding() {
+    var config = ConfigStore.loadAppConfig()
+    config.onboardingCompleted = true
+    try? ConfigStore.saveAppConfig(config)
+    showingOnboarding = false
+  }
+
+  func restartOnboarding() {
+    showingOnboarding = true
+  }
+
+  /// Apre l'interfaccia web della box: è lì che si concedono i permessi, e
+  /// mandarci l'utente è meglio che descrivergli il percorso.
+  func openBoxWebInterface() {
+    guard let profile = profiles.first(where: { $0.id == activeProfileID }),
+      let url = URL(string: profile.baseURL),
+      let host = url.host
+    else {
+      reportError(appString("Nessuna iliadbox configurata"))
+      return
+    }
+    var components = URLComponents()
+    components.scheme = url.scheme ?? "http"
+    components.host = host
+    if let port = url.port { components.port = port }
+    components.path = "/"
+    guard let webURL = components.url else { return }
+    NSWorkspace.shared.open(webURL)
+  }
+
+  /// La CLI vive dentro il bundle: installarla richiede privilegi che l'app
+  /// non ha, quindi si consegna il comando invece di chiedere una password.
+  func copyCLIInstallCommand() {
+    let binary = Bundle.main.bundleURL
+      .appendingPathComponent("Contents/MacOS/ibx").path
+    let command = "sudo ln -sf \"\(binary)\" /usr/local/bin/ibx"
+    NSPasteboard.general.clearContents()
+    NSPasteboard.general.setString(command, forType: .string)
+    emitFeedback(appString("Comando copiato: incollalo nel Terminale"), style: .success)
+  }
+
+  /// Rilegge i permessi associati al token senza riassociare: è ciò che serve
+  /// dopo averli concessi dall'interfaccia web della box.
+  func refreshPermissions() async {
+    guard paired else { return }
+    await refreshBoxStats()
+    permissions = await client.permissionSnapshot()
+    networkSettingsAllowed = await client.hasPermission("settings")
+    parentalControlAllowed = await client.hasPermission("parental")
   }
 
   /// The status item must exist before macOS is allowed to present a Keychain

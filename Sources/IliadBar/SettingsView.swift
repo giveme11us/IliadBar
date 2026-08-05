@@ -85,6 +85,13 @@ private struct GeneralSettingsView: View {
             set: { model.setLaunchAtLogin($0) }
           ))
       }
+
+      Section("Configurazione iniziale") {
+        Button("Rivedi la configurazione iniziale") { model.restartOnboarding() }
+        Text("Ripercorre ricerca della box, associazione e permessi.")
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      }
     }
     .formStyle(.grouped)
   }

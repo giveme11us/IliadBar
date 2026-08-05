@@ -160,6 +160,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // private config immediately; legacy profiles may still require a one-time
     // Keychain migration dialog, which must never block app presentation.
     Task { await model.activateSavedCredential() }
+
+    // Primo avvio: senza questo, aprire l'app da Applicazioni non mostra
+    // nulla — solo un'icona in più in una menu bar affollata.
+    if model.showingOnboarding {
+      presentOnboardingWindow(attempt: 0)
+    }
   }
 
   /// Sinistro: pannello. Destro (o ctrl-click): menu contestuale, come ogni
@@ -213,6 +219,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   @objc private func openMainWindow() {
     showMainWindow(section: .home)
+  }
+
+  /// Il menu principale lo costruisce SwiftUI: all'avvio può non essere
+  /// ancora pronto, e con esso l'unica via AppKit per aprire la finestra.
+  /// Si riprova per un paio di secondi prima di ripiegare sul pannello.
+  private func presentOnboardingWindow(attempt: Int) {
+    let delay = attempt == 0 ? 0.1 : 0.3
+    DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+      guard let self, self.model.showingOnboarding else { return }
+      if self.performMainMenuItem(titled: String(localized: "Home")) {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        return
+      }
+      if attempt < 6 {
+        self.presentOnboardingWindow(attempt: attempt + 1)
+      } else if let button = self.statusItem?.button, !self.popover.isShown {
+        NSLog("IliadBar: finestra non apribile all'avvio, mostro il pannello")
+        self.togglePopover(button)
+      }
+    }
   }
 
   private func showMainWindow(section: MainSection) {

@@ -71,6 +71,20 @@ final class IliadboxKitTests: XCTestCase {
     XCTAssertTrue(config.boxes.isEmpty)
   }
 
+  func testOnboardingIsConsideredDoneForConfigurationsThatAlreadyHaveABox() throws {
+    let upgraded = Data(
+      #"{"schemaVersion":3,"activeBoxID":"home","boxes":[{"id":"home","name":"Casa","baseURL":"http://box/api/v15/"}]}"#
+        .utf8)
+    let config = try JSONDecoder().decode(AppConfig.self, from: upgraded)
+    XCTAssertTrue(config.onboardingCompleted)
+
+    let fresh = Data(#"{"schemaVersion":3,"boxes":[]}"#.utf8)
+    XCTAssertFalse(try JSONDecoder().decode(AppConfig.self, from: fresh).onboardingCompleted)
+
+    let explicit = Data(#"{"schemaVersion":3,"boxes":[],"onboardingCompleted":true}"#.utf8)
+    XCTAssertTrue(try JSONDecoder().decode(AppConfig.self, from: explicit).onboardingCompleted)
+  }
+
   func testPathStepsRebuildEveryFolderOfABase64Path() {
     let pathB64 = Data("/SSD/Download/Film".utf8).base64EncodedString()
     let steps = IliadboxClient.pathSteps(forPathB64: pathB64)

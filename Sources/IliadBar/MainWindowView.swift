@@ -16,6 +16,25 @@ struct MainWindowView: View {
   @ObservedObject var model: AppModel
 
   var body: some View {
+    Group {
+      if model.showingOnboarding {
+        OnboardingView(model: model)
+      } else {
+        sections
+      }
+    }
+    // L'app vive in menu bar (LSUIElement): con la finestra aperta diventa
+    // una app piena (icona in Dock, ⌘-Tab), alla chiusura torna accessoria.
+    .onAppear {
+      NSApp.setActivationPolicy(.regular)
+      NSApp.activate(ignoringOtherApps: true)
+    }
+    .onDisappear {
+      NSApp.setActivationPolicy(.accessory)
+    }
+  }
+
+  private var sections: some View {
     NavigationSplitView {
       List(selection: sectionBinding) {
         Label("Home", systemImage: "house").tag(MainSection.home)
@@ -42,15 +61,6 @@ struct MainWindowView: View {
     }
     .frame(minWidth: 980, minHeight: 620)
     .transientFeedback(model)
-    // L'app vive in menu bar (LSUIElement): con la finestra aperta diventa
-    // una app piena (icona in Dock, ⌘-Tab), alla chiusura torna accessoria.
-    .onAppear {
-      NSApp.setActivationPolicy(.regular)
-      NSApp.activate(ignoringOtherApps: true)
-    }
-    .onDisappear {
-      NSApp.setActivationPolicy(.accessory)
-    }
   }
 
   private var sectionBinding: Binding<MainSection?> {
