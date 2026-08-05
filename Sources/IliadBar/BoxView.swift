@@ -13,18 +13,13 @@ struct BoxView: View {
       Divider()
       systemSection
       Divider()
+      // Un solo ingresso: rete e servizi si scelgono dal sidebar della
+      // finestra, non da un secondo elenco qui.
       Button {
         model.mainWindowSection = .devices
         openWindow(id: IliadBarWindow.main)
       } label: {
-        Label("Apri Rete", systemImage: "network")
-      }
-      .buttonStyle(.plain)
-      Button {
-        model.mainWindowSection = .nat
-        openWindow(id: IliadBarWindow.main)
-      } label: {
-        Label("Apri Servizi", systemImage: "server.rack")
+        Label("Apri IliadBar", systemImage: "macwindow")
       }
       .buttonStyle(.plain)
     }

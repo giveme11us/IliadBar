@@ -438,3 +438,9 @@
 "Rivedi la configurazione iniziale" = "Rivedi la configurazione iniziale";
 "Ripercorre ricerca della box, associazione e permessi." = "Ripercorre ricerca della box, associazione e permessi.";
 "Passo %1$@ di %2$@" = "Passo %1$@ di %2$@";
+
+/* Revisione visiva: stato, condivisione */
+"Apri la scheda Download" = "Apri la scheda Download";
+"Condivisione non disponibile" = "Condivisione non disponibile";
+"I link creati dai file compaiono qui." = "I link creati dai file compaiono qui.";
+"Questa iliadbox non espone i link di condivisione." = "Questa iliadbox non espone i link di condivisione.";

@@ -83,6 +83,7 @@ final class AppModel: ObservableObject {
   @Published var filesLoading = false
   @Published var storageDisks: [StorageDisk] = []
   @Published var shareLinks: [ShareLink] = []
+  @Published private(set) var shareLinksAvailable = true
   @Published var fileOperationStatus: String?
   @Published var uploadProgress: Double?
   @Published var pendingUpload: PendingUpload?
@@ -704,11 +705,17 @@ final class AppModel: ObservableObject {
     }
   }
 
+  /// Aggiornamento di contorno: se la box non espone i link di condivisione
+  /// non è un errore dell'utente, è una capability che non c'è. Le azioni
+  /// esplicite sui link continuano a segnalare i loro fallimenti.
   func refreshShareLinks() async {
     do {
       shareLinks = try await client.shareLinks()
+      shareLinksAvailable = true
     } catch {
-      reportError(error)
+      shareLinks = []
+      shareLinksAvailable = false
+      NSLog("IliadBar: link di condivisione non disponibili (%@)", error.localizedDescription)
     }
   }
 

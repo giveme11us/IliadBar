@@ -52,9 +52,10 @@ struct DownloadManagerView: View {
   @State private var dropTargeted = false
 
   var body: some View {
-    // HSplitView e non NavigationSplitView: il sidebar della finestra è uno
-    // solo (MainWindowView) e annidarne un secondo duplicherebbe i controlli.
-    HSplitView {
+    // Né NavigationSplitView (il sidebar della finestra è uno solo) né
+    // HSplitView, che dentro la colonna di dettaglio sballa le dimensioni:
+    // due colonne esplicite separate da un Divider.
+    HStack(spacing: 0) {
       VStack(spacing: 0) {
         Picker("Filtro", selection: $filter) {
           ForEach(DownloadFilter.allCases) { Text($0.title).tag($0) }
@@ -82,9 +83,10 @@ struct DownloadManagerView: View {
           }
         }
       }
-      // maxHeight esplicito: HSplitView dà ai figli la loro altezza
-      // intrinseca, che lascerebbe il contenuto sospeso a metà colonna.
-      .frame(minWidth: 280, idealWidth: 330, maxWidth: 460, maxHeight: .infinity)
+      .frame(width: 330)
+      .frame(maxHeight: .infinity)
+
+      Divider()
 
       Group {
         if let task = selectedTask {
@@ -101,7 +103,7 @@ struct DownloadManagerView: View {
           )
         }
       }
-      .frame(minWidth: 380, maxWidth: .infinity, maxHeight: .infinity)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     // Trascinare un .torrent qui equivale ad "Apri torrent o NZB".
     .dropDestination(for: URL.self) { urls, _ in

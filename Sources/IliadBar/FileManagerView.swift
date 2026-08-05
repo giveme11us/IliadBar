@@ -418,7 +418,15 @@ private struct ShareLinksView: View {
       }
       .overlay {
         if model.shareLinks.isEmpty {
-          ContentUnavailableView("Nessun link condiviso", systemImage: "link")
+          ContentUnavailableView(
+            model.shareLinksAvailable
+              ? "Nessun link condiviso" : "Condivisione non disponibile",
+            systemImage: "link",
+            description: Text(
+              model.shareLinksAvailable
+                ? "I link creati dai file compaiono qui."
+                : "Questa iliadbox non espone i link di condivisione.")
+          )
         }
       }
     }

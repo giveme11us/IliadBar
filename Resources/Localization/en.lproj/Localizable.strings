@@ -469,3 +469,9 @@
 "Rivedi la configurazione iniziale" = "Review the first-run setup";
 "Ripercorre ricerca della box, associazione e permessi." = "Walks through box discovery, pairing and permissions again.";
 "Passo %1$@ di %2$@" = "Step %1$@ of %2$@";
+
+/* Visual review: status, sharing */
+"Apri la scheda Download" = "Open the Downloads tab";
+"Condivisione non disponibile" = "Sharing unavailable";
+"I link creati dai file compaiono qui." = "Links created from files appear here.";
+"Questa iliadbox non espone i link di condivisione." = "This iliadbox does not expose share links.";

@@ -170,8 +170,32 @@ struct PanelView: View {
         .frame(maxWidth: .infinity, alignment: .center)
         .padding(.vertical, 18)
       }
-      Divider()
-      activityPreview
+      // I download vivono nella loro scheda: elencarli anche qui rendeva lo
+      // Stato una ripetizione. Resta il riepilogo di una riga.
+      if !model.tasks.isEmpty {
+        Divider()
+        Button {
+          tab = .download
+        } label: {
+          HStack(spacing: 6) {
+            Image(systemName: "arrow.down.circle")
+              .imageScale(.medium)
+              .frame(width: 18)
+              .foregroundStyle(IliadPalette.blue)
+            Text(downloadSummary)
+              .font(.callout)
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+              .imageScale(.small)
+              .foregroundStyle(.tertiary)
+          }
+          .contentShape(Rectangle())
+          .padding(.vertical, 3)
+          .padding(.horizontal, 5)
+        }
+        .buttonStyle(.plain)
+        .help("Apri la scheda Download")
+      }
       Divider()
       quickActions
     }
@@ -258,50 +282,15 @@ struct PanelView: View {
     }
   }
 
-  private var activityPreview: some View {
-    VStack(alignment: .leading, spacing: 9) {
-      HStack {
-        Text("DOWNLOAD")
-          .font(.caption2.weight(.semibold))
-          .foregroundStyle(.secondary)
-        if !model.activeTasks.isEmpty {
-          Text("\(model.activeTasks.count) attivi")
-            .font(.caption2)
-            .foregroundStyle(IliadPalette.blue)
-        }
-        Spacer()
-        Button("Mostra tutti") { tab = .download }
-          .buttonStyle(.plain)
-          .font(.caption)
-          .foregroundStyle(.secondary)
-      }
-      if model.tasks.isEmpty {
-        Text("Nessun download sulla box")
-          .font(.footnote)
-          .foregroundStyle(.secondary)
-          .frame(maxWidth: .infinity, alignment: .center)
-          .padding(.vertical, 8)
-      } else {
-        ForEach(model.tasks.prefix(3)) { task in
-          TaskRow(task: task, model: model)
-        }
-      }
-    }
-  }
-
+  /// Un solo ingresso alla finestra: le sezioni si scelgono lì, ripeterle
+  /// qui rendeva il pannello un secondo menu.
   private var quickActions: some View {
     VStack(spacing: 1) {
       ActionRow(icon: "doc.on.clipboard", title: "Aggiungi magnet dagli appunti") {
         Task { await model.addFromPasteboard() }
       }
-      ActionRow(icon: "house", title: "Apri IliadBar") {
+      ActionRow(icon: "macwindow", title: "Apri IliadBar") {
         open(.home)
-      }
-      ActionRow(icon: "network", title: "Apri Rete") {
-        open(.devices)
-      }
-      ActionRow(icon: "server.rack", title: "Apri Servizi") {
-        open(.nat)
       }
     }
   }
@@ -540,7 +529,8 @@ struct PanelView: View {
       Button {
         (NSApplication.shared.delegate as? AppDelegate)?.updaterController.checkForUpdates(nil)
       } label: {
-        Image(systemName: "arrow.triangle.2.circlepath")
+        // Non un altro cerchio di frecce: si confondeva con "Aggiorna".
+        Image(systemName: "sparkles")
       }
       .buttonStyle(.plain)
       .help("Controlla aggiornamenti")

@@ -282,7 +282,7 @@ struct AdvancedServicesView: View {
   }
 
   private var communications: some View {
-    HSplitView {
+    HStack(spacing: 0) {
       VStack(alignment: .leading, spacing: 0) {
         Text("Chiamate recenti").font(.headline).padding()
         if model.advancedCapabilities.contains(.calls) {
@@ -305,7 +305,10 @@ struct AdvancedServicesView: View {
           unavailablePage("Registro chiamate", icon: "phone")
         }
       }
-      .frame(minWidth: 260, maxWidth: .infinity, maxHeight: .infinity)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+      Divider()
+
       VStack(alignment: .leading, spacing: 0) {
         Text("Contatti").font(.headline).padding()
         if model.advancedCapabilities.contains(.contacts) {
@@ -316,7 +319,8 @@ struct AdvancedServicesView: View {
           unavailablePage("Contatti", icon: "person.crop.circle")
         }
       }
-      .frame(minWidth: 220, maxWidth: .infinity, maxHeight: .infinity)
+      .frame(width: 300)
+      .frame(maxHeight: .infinity)
     }
   }
 
