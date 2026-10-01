@@ -22,11 +22,26 @@ if [[ "$MODE" == "--device" ]]; then
     echo "Errore: DEVELOPMENT_TEAM è obbligatorio per il device." >&2
     exit 1
   fi
-  xcodebuild -project IliadBariOS.xcodeproj -scheme IliadBariOS \
-    -destination 'generic/platform=iOS' -configuration Release \
-    -derivedDataPath "$DERIVED" \
-    DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" build
-  echo "OK: $DERIVED/Build/Products/Release-iphoneos/IliadBariOS.app"
+  UDID="${DEVICE_UDID:-}"
+  DEST="generic/platform=iOS"
+  if [[ -n "$UDID" ]]; then DEST="id=$UDID"; fi
+  SIGN_ARGS=(DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" -allowProvisioningUpdates
+    -allowProvisioningDeviceRegistration)
+
+  # Primo tentativo con App Group (richiede account a pagamento e il gruppo
+  # registrato nel portale). Se il profilo generato non lo include, si ricade
+  # sugli entitlements minimi: il widget perde solo lo snapshot condiviso.
+  if ! xcodebuild -project IliadBariOS.xcodeproj -scheme IliadBariOS \
+    -destination "$DEST" -configuration Debug -derivedDataPath "$DERIVED" \
+    "${SIGN_ARGS[@]}" build >/dev/null 2>&1; then
+    echo "App Group non disponibile nel profilo: build senza gruppo condiviso." >&2
+    xcodebuild -project IliadBariOS.xcodeproj -scheme IliadBariOS \
+      -destination "$DEST" -configuration Debug -derivedDataPath "$DERIVED" \
+      "${SIGN_ARGS[@]}" \
+      CODE_SIGN_ENTITLEMENTS=Sources/IliadBariOS/Support/App-NoGroup.entitlements \
+      build
+  fi
+  echo "OK: $DERIVED/Build/Products/Debug-iphoneos/IliadBariOS.app"
   exit 0
 fi
 
