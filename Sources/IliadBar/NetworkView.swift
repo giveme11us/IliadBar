@@ -1,8 +1,43 @@
-import AppKit
 import CoreImage
 import IliadBarDesign
 import IliadboxKit
 import SwiftUI
+
+#if canImport(AppKit)
+  import AppKit
+#endif
+#if canImport(UIKit)
+  import UIKit
+#endif
+
+/// QR Wi-Fi renderizzato con CoreImage: stessa pipeline su entrambe le
+/// piattaforme, cambia solo il tipo immagine finale.
+struct QRCodeImage: View {
+  let text: String
+
+  var body: some View {
+    if let cgImage = Self.makeImage(text) {
+      #if canImport(AppKit)
+        Image(nsImage: NSImage(cgImage: cgImage, size: NSSize(width: 112, height: 112)))
+          .interpolation(.none)
+          .resizable()
+      #elseif canImport(UIKit)
+        Image(uiImage: UIImage(cgImage: cgImage))
+          .interpolation(.none)
+          .resizable()
+      #endif
+    }
+  }
+
+  private static func makeImage(_ text: String) -> CGImage? {
+    guard let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
+    filter.setValue(Data(text.utf8), forKey: "inputMessage")
+    filter.setValue("M", forKey: "inputCorrectionLevel")
+    guard let output = filter.outputImage?.transformed(by: CGAffineTransform(scaleX: 8, y: 8))
+    else { return nil }
+    return CIContext().createCGImage(output, from: output.extent)
+  }
+}
 
 enum NetworkSection: String, CaseIterable, Identifiable {
   case devices, wifi, dhcp
@@ -249,10 +284,10 @@ struct NetworkView: View {
                 }
               }
               Spacer()
-              if let payload = wifiPayload(for: bss), let image = qrImage(payload) {
+              if let payload = wifiPayload(for: bss) {
                 VStack(spacing: 6) {
-                  Image(nsImage: image).interpolation(.none).resizable().frame(
-                    width: 112, height: 112)
+                  QRCodeImage(text: payload)
+                    .frame(width: 112, height: 112)
                   Text("Scansiona per collegarti").font(.caption2).foregroundStyle(.secondary)
                 }
                 .accessibilityLabel("Codice QR per la rete \(bss.config?.ssid ?? "Wi-Fi")")
@@ -400,15 +435,6 @@ struct NetworkView: View {
     }
     return
       "WIFI:T:\(type);S:\(escape(ssid));P:\(escape(config.key ?? ""));H:\(config.hidesSSID == true ? "true" : "false");;"
-  }
-  private func qrImage(_ text: String) -> NSImage? {
-    guard let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
-    filter.setValue(Data(text.utf8), forKey: "inputMessage")
-    filter.setValue("M", forKey: "inputCorrectionLevel")
-    guard let output = filter.outputImage?.transformed(by: CGAffineTransform(scaleX: 8, y: 8)),
-      let representation = CIContext().createCGImage(output, from: output.extent)
-    else { return nil }
-    return NSImage(cgImage: representation, size: NSSize(width: 112, height: 112))
   }
 }
 

@@ -28,11 +28,35 @@ L'override `ILIADBAR_CONFIG_DIRECTORY` è riservato a test e automazione locale.
 ## Struttura
 
 - `Sources/IliadboxKit`: logica condivisa e client API.
-- `Sources/IliadBar`: interfaccia menu bar e finestre.
-- `Sources/IliadBarWidget`: estensione WidgetKit.
-- `Sources/ibx`: CLI.
+- `Sources/IliadBar`: interfaccia menu bar e finestre. I file di questo target
+  (tranne il guscio macOS: `IliadBarApp`, `MainWindowView`, `PanelView`,
+  `BoxView`, `FilesView`) sono compilati anche dall'app iOS dietro
+  `#if canImport(AppKit)` / `#if canImport(UIKit)`.
+- `Sources/IliadBariOS`: guscio iOS (@main, TabView, deep link).
+- `Sources/IliadBarWidget`: estensione WidgetKit (macOS via SPM, iOS via
+  XcodeGen: la stessa sorgente è compilata dal target extension del
+  progetto).
+- `Sources/ibx`: CLI (solo desktop).
 - `Tests`: fixture e test di contratto/decodifica.
 - `Scripts`: packaging, audit e release.
+- `project.yml`: specifica XcodeGen del progetto iOS (`IliadBariOS.xcodeproj`
+  è generato e ignorato, come `.build`).
+
+## iOS
+
+Il progetto iOS si genera con `xcodegen` e si compila con
+`Scripts/make-ios-app.sh` (vedi README). Le differenze che contano:
+
+- **Firma**: sul simulatore non serve nulla; per dispositivo fisico e
+  TestFlight imposta `DEVELOPMENT_TEAM` (variabile d'ambiente o Xcode) e
+  registra l'App Group `group.it.ivansposato.iliadbar` nel profilo.
+- **Rete locale**: `NSLocalNetworkUsageDescription`, `NSBonjourServices`
+  (`_fbx-api._tcp`) e `NSAllowsLocalNetworking` vivono in `project.yml`
+  (Info.plist generato). La box parla HTTP sulla LAN: senza l'esenzione ATS
+  le chiamate non partono.
+- **Convenzione**: ogni API macOS-only va dentro `#if canImport(AppKit)`
+  con un ramo UIKit equivalente, così `swift build` continua a validare
+  entrambe le piattaforme.
 
 ## Regole API
 
@@ -51,4 +75,5 @@ swift test
 ./Scripts/audit-localization.sh
 ./Scripts/make-app.sh
 codesign --verify --deep --strict build/IliadBar.app
+./Scripts/make-ios-app.sh --sim
 ```

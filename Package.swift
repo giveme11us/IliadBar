@@ -3,9 +3,10 @@ import PackageDescription
 
 let package = Package(
   name: "iliadbar",
-  platforms: [.macOS(.v14)],
+  platforms: [.macOS(.v14), .iOS(.v17)],
   products: [
     .library(name: "IliadboxKit", targets: ["IliadboxKit"]),
+    .library(name: "IliadBarDesign", targets: ["IliadBarDesign"]),
     .executable(name: "ibx", targets: ["ibx"]),
     .executable(name: "IliadBar", targets: ["IliadBar"]),
     .executable(name: "IliadBarWidget", targets: ["IliadBarWidget"]),

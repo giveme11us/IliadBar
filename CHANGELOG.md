@@ -7,6 +7,12 @@ versionamento semantico.
 
 ### Added
 
+- Port iOS (17+): shell iPhone/iPad con TabView (Home, Download, File, Rete,
+  Impostazioni), onboarding multipiattaforma, deep link `iliadbar://` dei
+  widget e schema `magnet:`; widget WidgetKit con App Group condiviso;
+  progetto XcodeGen (`Scripts/make-ios-app.sh`), con le stesse view e lo
+  stesso `AppModel` del target macOS dietro `#if canImport`.
+
 - Discovery Bonjour, profili multi-box, negoziazione API e token nel file di
   configurazione privato (0600), con migrazione una tantum dal Portachiavi
   legacy.
