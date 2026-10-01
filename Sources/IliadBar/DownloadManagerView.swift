@@ -1,6 +1,7 @@
 import IliadBarDesign
 import IliadboxKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 private enum DownloadFilter: String, CaseIterable, Identifiable {
   case all, active, finished, errors
@@ -50,30 +51,191 @@ struct DownloadManagerView: View {
   @State private var showAddURL = false
   @State private var pendingRemoval: DownloadTask?
   @State private var dropTargeted = false
+  #if canImport(UIKit)
+    @State private var showTorrentImporter = false
+  #endif
 
   var body: some View {
+    #if canImport(AppKit)
+      macOSBody
+    #elseif canImport(UIKit)
+      iosBody
+    #endif
+  }
+
+  #if canImport(AppKit)
     // Né NavigationSplitView (il sidebar della finestra è uno solo) né
     // HSplitView, che dentro la colonna di dettaglio sballa le dimensioni:
     // due colonne esplicite separate da un Divider.
-    HStack(spacing: 0) {
+    private var macOSBody: some View {
+      HStack(spacing: 0) {
+        VStack(spacing: 0) {
+          Picker("Filtro", selection: $filter) {
+            ForEach(DownloadFilter.allCases) { Text($0.title).tag($0) }
+          }
+          .pickerStyle(.segmented)
+          .labelsHidden()
+          .padding(10)
+
+          List(filteredTasks, selection: $selection) { task in
+            DownloadListRow(task: task)
+              .tag(task.id)
+              .onTapGesture(count: 2) { Task { await model.revealInFiles(task) } }
+              .contextMenu { taskMenu(task) }
+          }
+          .searchable(text: $search, prompt: "Cerca download")
+          .onDeleteCommand {
+            if let task = selectedTask { pendingRemoval = task }
+          }
+          .overlay {
+            if filteredTasks.isEmpty {
+              ContentUnavailableView(
+                search.isEmpty ? "Nessun download" : "Nessun risultato",
+                systemImage: search.isEmpty ? "arrow.down.circle" : "magnifyingglass"
+              )
+            }
+          }
+        }
+        .frame(width: 330)
+        .frame(maxHeight: .infinity)
+
+        Divider()
+
+        Group {
+          if let task = selectedTask {
+            DownloadDetailView(task: task, model: model) {
+              pendingRemoval = task
+            }
+            .id(task.id)
+            .task {
+              await model.loadDownloadDetails(task)
+              // Lo spazio libero serve a spiegare un eventuale disco pieno.
+              if task.hasFailed { await model.refreshStorage() }
+            }
+          } else {
+            ContentUnavailableView(
+              "Seleziona un download",
+              systemImage: "arrow.down.circle",
+              description: Text("Qui trovi file, tracker, peer e stato dei blocchi.")
+            )
+          }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+      }
+      // Trascinare un .torrent qui equivale ad "Apri torrent o NZB".
+      .dropDestination(for: URL.self) { urls, _ in
+        Task { await model.addDownloadFiles(urls) }
+        return true
+      } isTargeted: {
+        dropTargeted = $0
+      }
+      .overlay {
+        if dropTargeted {
+          RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .strokeBorder(IliadPalette.blue, style: StrokeStyle(lineWidth: 2, dash: [6]))
+            .padding(4)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
+      }
+      .navigationTitle("Download")
+      .toolbar {
+        ToolbarItemGroup {
+          Menu {
+            Picker("Ordina per", selection: $sort) {
+              ForEach(DownloadSort.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.inline)
+          } label: {
+            Label("Ordina", systemImage: "arrow.up.arrow.down")
+          }
+          .help("Ordina i download")
+          Button {
+            showAddURL = true
+          } label: {
+            Label("Aggiungi URL", systemImage: "link.badge.plus")
+          }
+          Button {
+            Task { await model.chooseAndAddDownloadFile() }
+          } label: {
+            Label("Apri torrent o NZB", systemImage: "doc.badge.plus")
+          }
+          Button {
+            Task { await model.refresh() }
+          } label: {
+            Label("Aggiorna", systemImage: "arrow.clockwise")
+          }
+        }
+      }
+      .task { await model.refresh() }
+      .onChange(of: selection) { _, id in
+        guard let id, let task = model.tasks.first(where: { $0.id == id }) else { return }
+        Task { await model.loadDownloadDetails(task) }
+      }
+      .sheet(isPresented: $showAddURL) { AddDownloadURLView(model: model) }
+      .confirmationDialog(
+        "Rimuovere \(pendingRemoval?.name ?? "il download")?",
+        isPresented: Binding(
+          get: { pendingRemoval != nil },
+          set: { if !$0 { pendingRemoval = nil } }
+        ),
+        titleVisibility: .visible
+      ) {
+        if let task = pendingRemoval {
+          Button("Rimuovi solo il task") { Task { await model.remove(task) } }
+          Button("Rimuovi task e file", role: .destructive) {
+            Task { await model.remove(task, eraseFiles: true) }
+          }
+        }
+        Button("Annulla", role: .cancel) {}
+      } message: {
+        Text("I file vengono eliminati dalla box solo scegliendo l’azione distruttiva.")
+      }
+    }
+  #endif
+
+  #if canImport(UIKit)
+    /// Su iOS la lista e il dettaglio vivono in una NavigationStack: la riga
+    /// spinge il dettaglio, come ogni app di piattaforma.
+    private var iosBody: some View {
       VStack(spacing: 0) {
         Picker("Filtro", selection: $filter) {
           ForEach(DownloadFilter.allCases) { Text($0.title).tag($0) }
         }
         .pickerStyle(.segmented)
         .labelsHidden()
-        .padding(10)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
 
-        List(filteredTasks, selection: $selection) { task in
-          DownloadListRow(task: task)
-            .tag(task.id)
-            .onTapGesture(count: 2) { Task { await model.revealInFiles(task) } }
-            .contextMenu { taskMenu(task) }
+        List(filteredTasks) { task in
+          NavigationLink {
+            DownloadDetailView(task: task, model: model) {
+              pendingRemoval = task
+            }
+            .id(task.id)
+            .task {
+              await model.loadDownloadDetails(task)
+              if task.hasFailed { await model.refreshStorage() }
+            }
+          } label: {
+            DownloadListRow(task: task)
+          }
+          .swipeActions {
+            Button(role: .destructive) {
+              pendingRemoval = task
+            } label: {
+              Label("Rimuovi", systemImage: "trash")
+            }
+            Button {
+              Task { await model.togglePause(task) }
+            } label: {
+              Label(
+                task.status == "stopped" ? "Riprendi" : "Pausa",
+                systemImage: task.status == "stopped" ? "play.fill" : "pause.fill")
+            }
+          }
         }
         .searchable(text: $search, prompt: "Cerca download")
-        .onDeleteCommand {
-          if let task = selectedTask { pendingRemoval = task }
-        }
         .overlay {
           if filteredTasks.isEmpty {
             ContentUnavailableView(
@@ -82,103 +244,68 @@ struct DownloadManagerView: View {
             )
           }
         }
-      }
-      .frame(width: 330)
-      .frame(maxHeight: .infinity)
-
-      Divider()
-
-      Group {
-        if let task = selectedTask {
-          DownloadDetailView(task: task, model: model) {
-            pendingRemoval = task
+        .navigationTitle("Download")
+        .toolbar {
+          ToolbarItemGroup {
+            Menu {
+              Picker("Ordina per", selection: $sort) {
+                ForEach(DownloadSort.allCases) { Text($0.title).tag($0) }
+              }
+            } label: {
+              Label("Ordina", systemImage: "arrow.up.arrow.down")
+            }
+            Button {
+              showAddURL = true
+            } label: {
+              Label("Aggiungi URL", systemImage: "link.badge.plus")
+            }
+            Button {
+              showTorrentImporter = true
+            } label: {
+              Label("Apri torrent o NZB", systemImage: "doc.badge.plus")
+            }
+            Button {
+              Task { await model.refresh() }
+            } label: {
+              Label("Aggiorna", systemImage: "arrow.clockwise")
+            }
           }
-          .id(task.id)
-          .task {
-            await model.loadDownloadDetails(task)
-            // Lo spazio libero serve a spiegare un eventuale disco pieno.
-            if task.hasFailed { await model.refreshStorage() }
+        }
+        .task { await model.refresh() }
+        .sheet(isPresented: $showAddURL) { AddDownloadURLView(model: model) }
+        .fileImporter(
+          isPresented: $showTorrentImporter,
+          allowedContentTypes: [
+            UTType(filenameExtension: "torrent") ?? .data,
+            UTType(filenameExtension: "nzb") ?? .data,
+          ],
+          allowsMultipleSelection: true
+        ) { result in
+          if case .success(let urls) = result {
+            Task { await model.addDownloadFiles(urls) }
           }
-        } else {
-          ContentUnavailableView(
-            "Seleziona un download",
-            systemImage: "arrow.down.circle",
-            description: Text("Qui trovi file, tracker, peer e stato dei blocchi.")
-          )
         }
-      }
-      .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    // Trascinare un .torrent qui equivale ad "Apri torrent o NZB".
-    .dropDestination(for: URL.self) { urls, _ in
-      Task { await model.addDownloadFiles(urls) }
-      return true
-    } isTargeted: {
-      dropTargeted = $0
-    }
-    .overlay {
-      if dropTargeted {
-        RoundedRectangle(cornerRadius: 8, style: .continuous)
-          .strokeBorder(IliadPalette.blue, style: StrokeStyle(lineWidth: 2, dash: [6]))
-          .padding(4)
-          .allowsHitTesting(false)
-          .accessibilityHidden(true)
-      }
-    }
-    .navigationTitle("Download")
-    .toolbar {
-      ToolbarItemGroup {
-        Menu {
-          Picker("Ordina per", selection: $sort) {
-            ForEach(DownloadSort.allCases) { Text($0.title).tag($0) }
+        .confirmationDialog(
+          "Rimuovere \(pendingRemoval?.name ?? "il download")?",
+          isPresented: Binding(
+            get: { pendingRemoval != nil },
+            set: { if !$0 { pendingRemoval = nil } }
+          ),
+          titleVisibility: .visible
+        ) {
+          if let task = pendingRemoval {
+            Button("Rimuovi solo il task") { Task { await model.remove(task) } }
+            Button("Rimuovi task e file", role: .destructive) {
+              Task { await model.remove(task, eraseFiles: true) }
+            }
           }
-          .pickerStyle(.inline)
-        } label: {
-          Label("Ordina", systemImage: "arrow.up.arrow.down")
-        }
-        .help("Ordina i download")
-        Button {
-          showAddURL = true
-        } label: {
-          Label("Aggiungi URL", systemImage: "link.badge.plus")
-        }
-        Button {
-          Task { await model.chooseAndAddDownloadFile() }
-        } label: {
-          Label("Apri torrent o NZB", systemImage: "doc.badge.plus")
-        }
-        Button {
-          Task { await model.refresh() }
-        } label: {
-          Label("Aggiorna", systemImage: "arrow.clockwise")
+          Button("Annulla", role: .cancel) {}
+        } message: {
+          Text("I file vengono eliminati dalla box solo scegliendo l’azione distruttiva.")
         }
       }
     }
-    .task { await model.refresh() }
-    .onChange(of: selection) { _, id in
-      guard let id, let task = model.tasks.first(where: { $0.id == id }) else { return }
-      Task { await model.loadDownloadDetails(task) }
-    }
-    .sheet(isPresented: $showAddURL) { AddDownloadURLView(model: model) }
-    .confirmationDialog(
-      "Rimuovere \(pendingRemoval?.name ?? "il download")?",
-      isPresented: Binding(
-        get: { pendingRemoval != nil },
-        set: { if !$0 { pendingRemoval = nil } }
-      ),
-      titleVisibility: .visible
-    ) {
-      if let task = pendingRemoval {
-        Button("Rimuovi solo il task") { Task { await model.remove(task) } }
-        Button("Rimuovi task e file", role: .destructive) {
-          Task { await model.remove(task, eraseFiles: true) }
-        }
-      }
-      Button("Annulla", role: .cancel) {}
-    } message: {
-      Text("I file vengono eliminati dalla box solo scegliendo l’azione distruttiva.")
-    }
-  }
+  #endif
 
   private var selectedTask: DownloadTask? {
     guard let selection else { return nil }

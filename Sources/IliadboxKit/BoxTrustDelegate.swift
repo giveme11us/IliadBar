@@ -38,6 +38,7 @@ final class BoxTrustDelegate: NSObject, URLSessionDelegate, @unchecked Sendable 
     let host = challenge.protectionSpace.host.lowercased()
     guard expectedHost == nil || expectedHost == host else {
       Self.logger.error("TLS challenge rejected: unexpected host")
+      Self.debugLog("IbxTLS: reject host \(host) (atteso \(expectedHost ?? "-"))")
       completionHandler(.cancelAuthenticationChallenge, nil)
       return
     }
@@ -47,25 +48,70 @@ final class BoxTrustDelegate: NSObject, URLSessionDelegate, @unchecked Sendable 
       completionHandler(.useCredential, URLCredential(trust: trust))
       return
     }
+    #if DEBUG
+      Self.debugLog(
+        "IbxTLS: default eval fallita per \(host): \(defaultError.map(String.init(describing:)) ?? "-")"
+      )
+      Self.debugLog(Self.chainDescription(trust))
+    #endif
 
     guard let anchor = Self.pinnedAnchor(in: trust) else {
       Self.logger.error("TLS challenge rejected: pinned anchor missing")
+      Self.debugLog("IbxTLS: anchor pinmato assente nella chain servita")
       completionHandler(.cancelAuthenticationChallenge, nil)
       return
     }
 
-    SecTrustSetPolicies(trust, SecPolicyCreateSSL(true, host as CFString))
-    SecTrustSetAnchorCertificates(trust, [anchor] as CFArray)
-    SecTrustSetAnchorCertificatesOnly(trust, true)
+    // Verifica crittografica su una copia: la leaf deve essere davvero firmata
+    // dalla CA intermedia pinmata (hash uguale non basta, il certificato è
+    // materiale pubblico). La copia evita di consepire a URLSession un trust
+    // modificato: iOS 26 rifiuta con -1200 le credential costruite da trust
+    // ri-ancorati, mentre onora il classico schema del pinning.
+    let chain = (SecTrustCopyCertificateChain(trust) as? [SecCertificate]) ?? []
+    var verificationTrust: SecTrust?
+    let status = SecTrustCreateWithCertificates(
+      chain as CFArray,
+      SecPolicyCreateSSL(true, host as CFString),
+      &verificationTrust
+    )
+    guard status == errSecSuccess, let verificationTrust else {
+      Self.logger.error("TLS challenge rejected: verification trust unavailable")
+      completionHandler(.cancelAuthenticationChallenge, nil)
+      return
+    }
+    SecTrustSetAnchorCertificates(verificationTrust, [anchor] as CFArray)
+    SecTrustSetAnchorCertificatesOnly(verificationTrust, true)
     var pinnedError: CFError?
-    guard SecTrustEvaluateWithError(trust, &pinnedError) else {
+    guard SecTrustEvaluateWithError(verificationTrust, &pinnedError) else {
       Self.logger.error("TLS challenge rejected after pinned evaluation")
+      Self.debugLog(
+        "IbxTLS: pinned eval fallita: \(pinnedError.map(String.init(describing:)) ?? "-")")
       completionHandler(.cancelAuthenticationChallenge, nil)
       return
     }
     Self.logger.debug("TLS challenge accepted with pinned anchor")
+    Self.debugLog("IbxTLS: accettata con anchor pinmato (trust originale)")
     completionHandler(.useCredential, URLCredential(trust: trust))
   }
+
+  #if DEBUG
+    private static func debugLog(_ message: String) {
+      NSLog("%@", message)
+    }
+
+    private static func chainDescription(_ trust: SecTrust) -> String {
+      guard let certificates = SecTrustCopyCertificateChain(trust) as? [SecCertificate]
+      else { return "IbxTLS: chain non disponibile" }
+      return certificates.enumerated().map { index, certificate in
+        let summary = SecCertificateCopySubjectSummary(certificate) as String? ?? "?"
+        let digest = SHA256.hash(data: SecCertificateCopyData(certificate) as Data)
+          .prefix(8).map { String(format: "%02x", $0) }.joined()
+        return "IbxTLS: [\(index)] \(summary) sha256:\(digest)…"
+      }.joined(separator: "\n")
+    }
+  #else
+    private static func debugLog(_ message: String) {}
+  #endif
 
   private static func pinnedAnchor(in trust: SecTrust) -> SecCertificate? {
     guard let certificates = SecTrustCopyCertificateChain(trust) as? [SecCertificate] else {

@@ -1,6 +1,12 @@
 import IliadBarDesign
 import IliadboxKit
-import SwiftUI
+
+#if canImport(UIKit)
+  import SwiftUI
+  import UIKit
+#else
+  import SwiftUI
+#endif
 
 struct SettingsView: View {
   @ObservedObject var model: AppModel
@@ -16,20 +22,50 @@ struct SettingsView: View {
       DiagnosticsSettingsView(model: model)
         .tabItem { Label("Diagnostica", systemImage: "stethoscope") }
     }
-    .padding(20)
-    .frame(width: 560, height: 430)
+    #if canImport(AppKit)
+      .padding(20)
+      .frame(width: 560, height: 430)
+    #endif
   }
 }
 
+/// Share sheet di sistema per l'esportazione su iOS.
+#if canImport(UIKit)
+  struct ActivityShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+      UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
+  }
+#endif
+
 private struct DiagnosticsSettingsView: View {
   @ObservedObject var model: AppModel
+  #if canImport(UIKit)
+    private struct ExportedFile: Identifiable {
+      let url: URL
+      var id: String { url.absoluteString }
+    }
+    @State private var exportURL: ExportedFile?
+  #endif
 
   var body: some View {
     Form {
       Section("Supporto") {
         Text("Esporta un riepilogo tecnico utile per segnalare problemi.")
         Button {
-          Task { await model.exportDiagnostics() }
+          #if canImport(AppKit)
+            Task { await model.exportDiagnostics() }
+          #else
+            Task {
+              if let url = await model.exportDiagnostics() {
+                exportURL = ExportedFile(url: url)
+              }
+            }
+          #endif
         } label: {
           Label("Esporta diagnostica…", systemImage: "square.and.arrow.up")
         }
@@ -44,6 +80,11 @@ private struct DiagnosticsSettingsView: View {
       }
     }
     .formStyle(.grouped)
+    #if canImport(UIKit)
+      .sheet(item: $exportURL) { file in
+        ActivityShareSheet(items: [file.url])
+      }
+    #endif
   }
 }
 
@@ -77,14 +118,16 @@ private struct GeneralSettingsView: View {
           .foregroundStyle(.secondary)
       }
 
-      Section("macOS") {
-        Toggle(
-          "Avvia IliadBar al login",
-          isOn: Binding(
-            get: { model.launchAtLogin },
-            set: { model.setLaunchAtLogin($0) }
-          ))
-      }
+      #if canImport(AppKit)
+        Section("macOS") {
+          Toggle(
+            "Avvia IliadBar al login",
+            isOn: Binding(
+              get: { model.launchAtLogin },
+              set: { model.setLaunchAtLogin($0) }
+            ))
+        }
+      #endif
 
       Section("Configurazione iniziale") {
         Button("Rivedi la configurazione iniziale") { model.restartOnboarding() }

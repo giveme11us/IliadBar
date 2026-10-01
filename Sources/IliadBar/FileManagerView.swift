@@ -1,11 +1,22 @@
-import AppKit
 import IliadBarDesign
 import IliadboxKit
 import SwiftUI
+import UniformTypeIdentifiers
+
+#if canImport(AppKit)
+  import AppKit
+#endif
+#if canImport(UIKit)
+  import UIKit
+#endif
 
 struct FileManagerView: View {
   @ObservedObject var model: AppModel
   @State private var selection: Set<String> = []
+  #if canImport(UIKit)
+    @State private var iosSelection: FsEntry.ID?
+    @State private var showUploadImporter = false
+  #endif
   @State private var showNewFolder = false
   @State private var showRename = false
   @State private var showDelete = false
@@ -26,6 +37,14 @@ struct FileManagerView: View {
       }
     }
   }
+
+  /// File locale da consegnare a uno share sheet iOS.
+  #if canImport(UIKit)
+    struct ShareFileItem: Identifiable {
+      let url: URL
+      var id: String { url.absoluteString }
+    }
+  #endif
 
   var body: some View {
     VStack(spacing: 0) {
@@ -49,7 +68,7 @@ struct FileManagerView: View {
       }
     }
     .sheet(isPresented: $showRename) {
-      if let entry = selectedEntries.first {
+      if let entry = renameTarget {
         NameEntrySheet(title: "Rinomina", initialValue: entry.name) { name in
           runOperation { await model.rename(entry, to: name) }
         }
@@ -57,7 +76,7 @@ struct FileManagerView: View {
     }
     .sheet(item: $transferMode) { mode in
       DestinationPickerView(model: model, mode: mode.title) { destination, conflictMode in
-        let entries = selectedEntries
+        let entries = actionableEntries
         runOperation {
           await model.transferEntries(
             entries,
@@ -91,13 +110,17 @@ struct FileManagerView: View {
       Text(conflictMessage)
     }
     .confirmationDialog(
-      "Eliminare \(selectedEntries.count) elementi dalla iliadbox?",
+      "Eliminare \(actionableEntries.count) elementi dalla iliadbox?",
       isPresented: $showDelete,
       titleVisibility: .visible
     ) {
       Button("Elimina definitivamente", role: .destructive) {
-        let entries = selectedEntries
-        selection.removeAll()
+        let entries = actionableEntries
+        #if canImport(AppKit)
+          selection.removeAll()
+        #else
+          iosSelection = nil
+        #endif
         runOperation { await model.removeEntries(entries) }
       }
       Button("Annulla", role: .cancel) {}
@@ -105,6 +128,15 @@ struct FileManagerView: View {
       Text("Questa azione elimina file e cartelle dalla box e non può essere annullata.")
     }
   }
+
+  #if canImport(UIKit)
+    /// Le azioni della toolbar iOS lavorano sulla selezione singola della
+    /// lista; i percorsi multipli restano un gesto da desktop.
+    private var iosSelectedEntry: FsEntry? {
+      guard let id = iosSelection else { return nil }
+      return model.entries.first { $0.id == id }
+    }
+  #endif
 
   private var selectedEntries: [FsEntry] {
     model.entries.filter { selection.contains($0.id) }
@@ -118,76 +150,163 @@ struct FileManagerView: View {
   }
 
   private var entriesTable: some View {
-    Table(sortedEntries, selection: $selection, sortOrder: $sortOrder) {
-      TableColumn("Nome", value: \.name) { entry in
-        HStack(spacing: 8) {
-          Image(systemName: entry.isDirectory ? "folder.fill" : icon(for: entry))
-            .foregroundStyle(entry.isDirectory ? IliadPalette.blue : Color.secondary)
-            .frame(width: 18)
-          Text(entry.name).lineLimit(1).truncationMode(.middle)
-        }
-      }
-      TableColumn("Dimensione", value: \.sortableSize) { entry in
-        Text(entry.isDirectory ? "—" : Format.bytes(entry.size ?? 0))
-          .font(.callout.monospacedDigit())
-          .foregroundStyle(.secondary)
-      }
-      .width(min: 90, ideal: 110)
-      TableColumn("Modifica", value: \.sortableModification) { entry in
-        if let modification = entry.modification, modification > 0 {
-          Text(Date(timeIntervalSince1970: TimeInterval(modification)), style: .date)
-            .font(.callout)
-            .foregroundStyle(.secondary)
-        } else {
-          Text("—").foregroundStyle(.tertiary)
-        }
-      }
-      .width(min: 110, ideal: 140)
-    }
-    .contextMenu(forSelectionType: FsEntry.ID.self) { ids in
-      if let entry = model.entries.first(where: { ids.first == $0.id }) {
-        contextMenu(entry)
-      }
-    } primaryAction: { ids in
-      guard let entry = model.entries.first(where: { ids.first == $0.id }), entry.isDirectory
-      else { return }
-      Task { await model.enter(entry) }
-    }
-    .overlay {
-      if model.filesLoading {
-        ProgressView()
-      } else if model.entries.isEmpty {
-        ContentUnavailableView("Cartella vuota", systemImage: "folder")
-      }
-    }
-    .onDeleteCommand {
-      if !selection.isEmpty { showDelete = true }
-    }
-    .onKeyPress(.return) {
-      guard selection.count == 1, let entry = selectedEntries.first, entry.isDirectory else {
-        return .ignored
-      }
-      Task { await model.enter(entry) }
-      return .handled
-    }
-    // Trascinare dal Finder è il modo macOS di fare ciò che il bottone
-    // "Carica…" già fa.
-    .dropDestination(for: URL.self) { urls, _ in
-      runOperation { await model.upload(urls) }
-      return true
-    } isTargeted: {
-      dropTargeted = $0
-    }
-    .overlay {
-      if dropTargeted {
-        RoundedRectangle(cornerRadius: 8, style: .continuous)
-          .strokeBorder(IliadPalette.blue, style: StrokeStyle(lineWidth: 2, dash: [6]))
-          .padding(4)
-          .allowsHitTesting(false)
-          .accessibilityHidden(true)
-      }
-    }
+    #if canImport(AppKit)
+      macOSTable
+    #elseif canImport(UIKit)
+      iosList
+    #endif
   }
+
+  #if canImport(AppKit)
+    private var macOSTable: some View {
+      Table(sortedEntries, selection: $selection, sortOrder: $sortOrder) {
+        TableColumn("Nome", value: \.name) { entry in
+          HStack(spacing: 8) {
+            Image(systemName: entry.isDirectory ? "folder.fill" : icon(for: entry))
+              .foregroundStyle(entry.isDirectory ? IliadPalette.blue : Color.secondary)
+              .frame(width: 18)
+            Text(entry.name).lineLimit(1).truncationMode(.middle)
+          }
+        }
+        TableColumn("Dimensione", value: \.sortableSize) { entry in
+          Text(entry.isDirectory ? "—" : Format.bytes(entry.size ?? 0))
+            .font(.callout.monospacedDigit())
+            .foregroundStyle(.secondary)
+        }
+        .width(min: 90, ideal: 110)
+        TableColumn("Modifica", value: \.sortableModification) { entry in
+          if let modification = entry.modification, modification > 0 {
+            Text(Date(timeIntervalSince1970: TimeInterval(modification)), style: .date)
+              .font(.callout)
+              .foregroundStyle(.secondary)
+          } else {
+            Text("—").foregroundStyle(.tertiary)
+          }
+        }
+        .width(min: 110, ideal: 140)
+      }
+      .contextMenu(forSelectionType: FsEntry.ID.self) { ids in
+        if let entry = model.entries.first(where: { ids.first == $0.id }) {
+          contextMenu(entry)
+        }
+      } primaryAction: { ids in
+        guard let entry = model.entries.first(where: { ids.first == $0.id }), entry.isDirectory
+        else { return }
+        Task { await model.enter(entry) }
+      }
+      .overlay {
+        if model.filesLoading {
+          ProgressView()
+        } else if model.entries.isEmpty {
+          ContentUnavailableView("Cartella vuota", systemImage: "folder")
+        }
+      }
+      .onDeleteCommand {
+        if !selection.isEmpty { showDelete = true }
+      }
+      .onKeyPress(.return) {
+        guard selection.count == 1, let entry = selectedEntries.first, entry.isDirectory else {
+          return .ignored
+        }
+        Task { await model.enter(entry) }
+        return .handled
+      }
+      // Trascinare dal Finder è il modo macOS di fare ciò che il bottone
+      // "Carica…" già fa.
+      .dropDestination(for: URL.self) { urls, _ in
+        runOperation { await model.upload(urls) }
+        return true
+      } isTargeted: {
+        dropTargeted = $0
+      }
+      .overlay {
+        if dropTargeted {
+          RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .strokeBorder(IliadPalette.blue, style: StrokeStyle(lineWidth: 2, dash: [6]))
+            .padding(4)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
+      }
+    }
+  #endif
+
+  #if canImport(UIKit)
+    /// Browser file iOS: cartelle con tap, file con context menu e azioni
+    /// veloci; selezione singola per Rinomina/Copia/Sposta della toolbar.
+    private var iosList: some View {
+      List(sortedEntries, selection: $iosSelection) { entry in
+        row(entry)
+          .tag(entry.id)
+          .contentShape(Rectangle())
+          .onTapGesture {
+            if entry.isDirectory { Task { await model.enter(entry) } }
+          }
+          .contextMenu { contextMenu(entry) }
+          .swipeActions {
+            if !entry.isDirectory {
+              Button {
+                Task { await model.downloadToMac(entry) }
+              } label: {
+                Label("Scarica", systemImage: "arrow.down.circle")
+              }
+              .tint(IliadPalette.blue)
+            }
+            Button(role: .destructive) {
+              iosSelection = entry.id
+              showDelete = true
+            } label: {
+              Label("Elimina", systemImage: "trash")
+            }
+          }
+      }
+      .overlay {
+        if model.filesLoading {
+          ProgressView()
+        } else if model.entries.isEmpty {
+          ContentUnavailableView("Cartella vuota", systemImage: "folder")
+        }
+      }
+      .fileImporter(
+        isPresented: $showUploadImporter,
+        allowedContentTypes: [.item],
+        allowsMultipleSelection: true
+      ) { result in
+        if case .success(let urls) = result {
+          runOperation { await model.upload(urls) }
+        }
+      }
+      .sheet(item: shareItemBinding) { file in
+        ActivityShareSheet(items: [file.url])
+      }
+    }
+
+    private var shareItemBinding: Binding<ShareFileItem?> {
+      Binding(
+        get: { model.downloadedFileForSharing.map(ShareFileItem.init) },
+        set: { if $0 == nil { model.downloadedFileForSharing = nil } }
+      )
+    }
+
+    private func row(_ entry: FsEntry) -> some View {
+      HStack(spacing: 10) {
+        Image(systemName: entry.isDirectory ? "folder.fill" : icon(for: entry))
+          .foregroundStyle(entry.isDirectory ? IliadPalette.blue : Color.secondary)
+          .frame(width: 20)
+        VStack(alignment: .leading, spacing: 2) {
+          Text(entry.name).lineLimit(1).truncationMode(.middle)
+          Text(
+            entry.isDirectory
+              ? NSLocalizedString("Cartella", comment: "File browser")
+              : Format.bytes(entry.size ?? 0)
+          )
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        }
+        Spacer()
+      }
+    }
+  #endif
 
   private func icon(for entry: FsEntry) -> String {
     switch (entry.name as NSString).pathExtension.lowercased() {
@@ -280,13 +399,21 @@ struct FileManagerView: View {
       } label: {
         Label("Nuova cartella", systemImage: "folder.badge.plus")
       }
-      .keyboardShortcut("n", modifiers: .command)
+      #if canImport(AppKit)
+        .keyboardShortcut("n", modifiers: .command)
+      #endif
       Button {
-        runOperation { await model.chooseFilesToUpload() }
+        #if canImport(AppKit)
+          runOperation { await model.chooseFilesToUpload() }
+        #else
+          showUploadImporter = true
+        #endif
       } label: {
         Label("Carica…", systemImage: "arrow.up.doc")
       }
-      .help("Carica file nella cartella corrente")
+      #if canImport(AppKit)
+        .help("Carica file nella cartella corrente")
+      #endif
       Button {
         showShareLinks = true
       } label: {
@@ -297,26 +424,54 @@ struct FileManagerView: View {
       } label: {
         Label("Copia", systemImage: "doc.on.doc")
       }
-      .disabled(selection.isEmpty)
+      .disabled(!canTransferSelection)
       Button {
         transferMode = .move
       } label: {
         Label("Sposta", systemImage: "folder")
       }
-      .disabled(selection.isEmpty)
+      .disabled(!canTransferSelection)
       Button {
         showRename = true
       } label: {
         Label("Rinomina", systemImage: "pencil")
       }
-      .disabled(selection.count != 1)
+      .disabled(renameTarget == nil)
       Button(role: .destructive) {
         showDelete = true
       } label: {
         Label("Elimina", systemImage: "trash")
       }
-      .disabled(selection.isEmpty)
+      .disabled(!hasDeletableSelection)
     }
+  }
+
+  private var canTransferSelection: Bool {
+    #if canImport(AppKit)
+      !selection.isEmpty
+    #else
+      iosSelectedEntry != nil
+    #endif
+  }
+
+  private var hasDeletableSelection: Bool { canTransferSelection }
+
+  /// Voce su cui agisce "Rinomina": una sola, su entrambe le piattaforme.
+  private var renameTarget: FsEntry? {
+    #if canImport(AppKit)
+      selection.count == 1 ? selectedEntries.first : nil
+    #else
+      iosSelectedEntry
+    #endif
+  }
+
+  /// Elementi coinvolti dalle azioni distruttive/di trasferimento.
+  private var actionableEntries: [FsEntry] {
+    #if canImport(AppKit)
+      selectedEntries
+    #else
+      iosSelectedEntry.map { [$0] } ?? []
+    #endif
   }
 
   @ViewBuilder
@@ -345,18 +500,26 @@ struct FileManagerView: View {
     if entry.isDirectory {
       Button("Apri") { Task { await model.enter(entry) } }
     } else {
-      Button("Copia sul Mac") { Task { await model.downloadToMac(entry) } }
+      Button("Copia sul dispositivo") { Task { await model.downloadToMac(entry) } }
     }
     Button("Crea link di condivisione") { Task { await model.createShareLink(for: entry) } }
     Divider()
     Button("Rinomina…") {
-      selection = [entry.id]
+      selectEntry(entry.id)
       showRename = true
     }
     Button("Elimina…", role: .destructive) {
-      selection = [entry.id]
+      selectEntry(entry.id)
       showDelete = true
     }
+  }
+
+  private func selectEntry(_ id: FsEntry.ID) {
+    #if canImport(AppKit)
+      selection = [id]
+    #else
+      iosSelection = id
+    #endif
   }
 
   private var conflictMessage: String {
@@ -409,8 +572,12 @@ private struct ShareLinksView: View {
           Spacer()
           if let url = link.fullURL {
             Button("Copia link") {
-              NSPasteboard.general.clearContents()
-              NSPasteboard.general.setString(url, forType: .string)
+              #if canImport(AppKit)
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(url, forType: .string)
+              #else
+                UIPasteboard.general.string = url
+              #endif
             }
           }
           Button("Revoca…", role: .destructive) { pendingRevocation = link }
@@ -430,7 +597,9 @@ private struct ShareLinksView: View {
         }
       }
     }
-    .frame(minWidth: 620, minHeight: 360)
+    #if canImport(AppKit)
+      .frame(minWidth: 620, minHeight: 360)
+    #endif
     .task { await model.refreshShareLinks() }
     .confirmationDialog(
       "Revocare questo link?",
@@ -504,7 +673,9 @@ private struct DestinationPickerView: View {
       }
       .padding(12)
     }
-    .frame(width: 430, height: 380)
+    #if canImport(AppKit)
+      .frame(width: 430, height: 380)
+    #endif
     .task { await load() }
   }
 
@@ -543,7 +714,9 @@ private struct NameEntrySheet: View {
       }
     }
     .padding(20)
-    .frame(width: 400)
+    #if canImport(AppKit)
+      .frame(width: 400)
+    #endif
   }
 
   private var cleaned: String { value.trimmingCharacters(in: .whitespacesAndNewlines) }

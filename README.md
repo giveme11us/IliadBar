@@ -5,6 +5,7 @@ download, file, dispositivi LAN, Wi-Fi e servizi avanzati in un'app nativa e
 local-first.
 
 ![Platform](https://img.shields.io/badge/macOS-14%2B-111111)
+![Platform](https://img.shields.io/badge/iOS-17%2B-111111)
 ![Swift](https://img.shields.io/badge/Swift-6-F05138)
 ![License](https://img.shields.io/badge/license-MIT-2ea44f)
 
@@ -54,6 +55,21 @@ Per usare la CLI inclusa:
 ```
 
 Esegui `ibx` senza argomenti per l'elenco completo dei comandi.
+
+## iOS
+
+La stessa app gira su iPhone e iPad (iOS 17+): TabView con Home, Download,
+File, Rete e Impostazioni, gli stessi widget connessione/download e gli
+stessi sorgenti condivisi con macOS. Al primo avvio iOS chiede il permesso
+per la rete locale: serve per cercare la box con Bonjour.
+
+```sh
+xcodegen generate
+./Scripts/make-ios-app.sh --sim   # build + install + launch sul simulatore
+```
+
+Per un dispositivo fisico o TestFlight serve `DEVELOPMENT_TEAM` (vedi
+[Development](docs/DEVELOPMENT.md)).
 
 ## Architettura
 

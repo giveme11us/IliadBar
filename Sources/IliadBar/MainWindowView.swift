@@ -2,14 +2,6 @@ import AppKit
 import IliadBarDesign
 import SwiftUI
 
-/// Sezioni della finestra principale: un solo sidebar per tutta la gestione.
-enum MainSection: String, CaseIterable, Identifiable, Hashable {
-  case home, download, file
-  case devices, wifi, dhcp
-  case nat, sharing, parental, communications, media
-  var id: String { rawValue }
-}
-
 /// La finestra unica di IliadBar: sidebar unificato + area di dettaglio.
 /// Sostituisce le quattro finestre separate (PRD-UX §2).
 struct MainWindowView: View {

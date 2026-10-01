@@ -1,8 +1,13 @@
-import AppKit
 import IliadboxKit
-import ServiceManagement
 import UniformTypeIdentifiers
 import UserNotifications
+
+#if canImport(AppKit)
+  import AppKit
+  import ServiceManagement
+#elseif canImport(UIKit)
+  import UIKit
+#endif
 
 private func appString(_ key: String, _ arguments: CVarArg...) -> String {
   String(format: NSLocalizedString(key, comment: "IliadBar status"), arguments: arguments)
@@ -89,6 +94,9 @@ final class AppModel: ObservableObject {
   @Published var uploadProgress: Double?
   @Published var pendingUpload: PendingUpload?
   @Published private(set) var fileOperationCanCancel = false
+  /// File appena scaricato dalla box, in attesa che la view lo consegni a un
+  /// share sheet (iOS: non esiste una cartella Downloads visibile all'utente).
+  @Published var downloadedFileForSharing: URL?
   // Rete locale
   @Published var lanInterfaces: [LanInterface] = []
   @Published var lanHosts: [LanHost] = []
@@ -135,7 +143,8 @@ final class AppModel: ObservableObject {
   /// Esito transiente di un'azione: le finestre lo mostrano come banner
   /// nel contesto in cui l'azione è avvenuta (auto-dismiss).
   @Published private(set) var transientFeedback: TransientFeedback?
-  @Published var launchAtLogin: Bool
+  /// Solo macOS: su iOS non esiste l'avvio al login e resta sempre false.
+  @Published var launchAtLogin: Bool = false
   @Published var profiles: [BoxProfile]
   @Published var activeProfileID: String?
   @Published var preferences: AppPreferences
@@ -170,7 +179,10 @@ final class AppModel: ObservableObject {
     activeProfileID = appConfig.activeBox?.id
     preferences = appConfig.preferences
     availability = appConfig.activeBox == nil ? .unconfigured : .connecting
-    launchAtLogin = Bundle.main.bundleIdentifier != nil && SMAppService.mainApp.status == .enabled
+    #if canImport(AppKit)
+      launchAtLogin =
+        Bundle.main.bundleIdentifier != nil && SMAppService.mainApp.status == .enabled
+    #endif
     showingOnboarding = !appConfig.onboardingCompleted
     startDiscovery()
   }
@@ -189,6 +201,43 @@ final class AppModel: ObservableObject {
     showingOnboarding = true
   }
 
+  // MARK: Helper multipiattaforma
+
+  /// Apre un URL esterno: LaunchServices su macOS, UIApplication su iOS.
+  private func openExternalURL(_ url: URL) {
+    #if canImport(AppKit)
+      NSWorkspace.shared.open(url)
+    #elseif canImport(UIKit)
+      UIApplication.shared.open(url)
+    #endif
+  }
+
+  private func copyToPasteboard(_ string: String) {
+    #if canImport(AppKit)
+      NSPasteboard.general.clearContents()
+      NSPasteboard.general.setString(string, forType: .string)
+    #elseif canImport(UIKit)
+      UIPasteboard.general.string = string
+    #endif
+  }
+
+  private var pasteboardString: String? {
+    #if canImport(AppKit)
+      return NSPasteboard.general.string(forType: .string)
+    #elseif canImport(UIKit)
+      return UIPasteboard.general.string
+    #endif
+  }
+
+  /// Nome del dispositivo mostrato sulla box durante l'associazione.
+  private var deviceName: String {
+    #if canImport(AppKit)
+      return Host.current().localizedName ?? "Mac"
+    #elseif canImport(UIKit)
+      return UIDevice.current.name
+    #endif
+  }
+
   /// Apre l'interfaccia web della box: è lì che si concedono i permessi, e
   /// mandarci l'utente è meglio che descrivergli il percorso.
   func openBoxWebInterface() {
@@ -205,19 +254,21 @@ final class AppModel: ObservableObject {
     if let port = url.port { components.port = port }
     components.path = "/"
     guard let webURL = components.url else { return }
-    NSWorkspace.shared.open(webURL)
+    openExternalURL(webURL)
   }
 
   /// La CLI vive dentro il bundle: installarla richiede privilegi che l'app
   /// non ha, quindi si consegna il comando invece di chiedere una password.
-  func copyCLIInstallCommand() {
-    let binary = Bundle.main.bundleURL
-      .appendingPathComponent("Contents/MacOS/ibx").path
-    let command = "sudo ln -sf \"\(binary)\" /usr/local/bin/ibx"
-    NSPasteboard.general.clearContents()
-    NSPasteboard.general.setString(command, forType: .string)
-    emitFeedback(appString("Comando copiato: incollalo nel Terminale"), style: .success)
-  }
+  /// Solo macOS: su iOS la CLI non esiste.
+  #if canImport(AppKit)
+    func copyCLIInstallCommand() {
+      let binary = Bundle.main.bundleURL
+        .appendingPathComponent("Contents/MacOS/ibx").path
+      let command = "sudo ln -sf \"\(binary)\" /usr/local/bin/ibx"
+      copyToPasteboard(command)
+      emitFeedback(appString("Comando copiato: incollalo nel Terminale"), style: .success)
+    }
+  #endif
 
   /// Rilegge i permessi associati al token senza riassociare: è ciò che serve
   /// dopo averli concessi dall'interfaccia web della box.
@@ -235,6 +286,9 @@ final class AppModel: ObservableObject {
   func activateSavedCredential() async {
     guard !credentialActivationInProgress else { return }
     credentialActivationInProgress = true
+    #if canImport(UIKit)
+      await normalizeActiveProfileTransport()
+    #endif
     defer { credentialActivationInProgress = false }
     let appConfig = ConfigStore.loadAppConfig()
     guard let profile = appConfig.activeBox else {
@@ -399,7 +453,7 @@ final class AppModel: ObservableObject {
 
   func addFromPasteboard() async {
     guard
-      let text = NSPasteboard.general.string(forType: .string)?
+      let text = pasteboardString?
         .trimmingCharacters(in: .whitespacesAndNewlines),
       text.hasPrefix("magnet:")
     else {
@@ -409,16 +463,20 @@ final class AppModel: ObservableObject {
     await add(magnet: text)
   }
 
-  func chooseAndAddDownloadFile() async {
-    let panel = NSOpenPanel()
-    panel.allowedContentTypes = [
-      .init(filenameExtension: "torrent")!, .init(filenameExtension: "nzb")!,
-    ]
-    panel.allowsMultipleSelection = true
-    panel.canChooseDirectories = false
-    guard panel.runModal() == .OK else { return }
-    await addDownloadFiles(panel.urls)
-  }
+  /// Selettore file .torrent/.nzb: su macOS un NSOpenPanel, su iOS la view
+  /// chiama `addDownloadFiles(_:)` da un fileImporter.
+  #if canImport(AppKit)
+    func chooseAndAddDownloadFile() async {
+      let panel = NSOpenPanel()
+      panel.allowedContentTypes = [
+        .init(filenameExtension: "torrent")!, .init(filenameExtension: "nzb")!,
+      ]
+      panel.allowsMultipleSelection = true
+      panel.canChooseDirectories = false
+      guard panel.runModal() == .OK else { return }
+      await addDownloadFiles(panel.urls)
+    }
+  #endif
 
   /// Ingresso comune di scelta manuale e trascinamento: accetta solo torrent
   /// e NZB, ignorando in silenzio il resto di un trascinamento misto.
@@ -736,8 +794,7 @@ final class AppModel: ObservableObject {
           "Abilita l’accesso remoto sulla iliadbox per creare un link pubblico")
         return
       }
-      NSPasteboard.general.clearContents()
-      NSPasteboard.general.setString(url, forType: .string)
+      copyToPasteboard(url)
       reportSuccess(appString("Link copiato negli appunti"))
       await refreshShareLinks()
     } catch {
@@ -770,13 +827,17 @@ final class AppModel: ObservableObject {
 
   /// Sceglie i file e carica: la politica sui conflitti viene chiesta solo se
   /// un conflitto esiste davvero (PRD-UX §4), non prima di sapere se ce n'è uno.
-  func chooseFilesToUpload() async {
-    let panel = NSOpenPanel()
-    panel.allowsMultipleSelection = true
-    panel.canChooseDirectories = false
-    guard panel.runModal() == .OK else { return }
-    await upload(panel.urls)
-  }
+  /// Su macOS apre un NSOpenPanel; su iOS la view chiama `upload(_:)` da un
+  /// fileImporter.
+  #if canImport(AppKit)
+    func chooseFilesToUpload() async {
+      let panel = NSOpenPanel()
+      panel.allowsMultipleSelection = true
+      panel.canChooseDirectories = false
+      guard panel.runModal() == .OK else { return }
+      await upload(panel.urls)
+    }
+  #endif
 
   /// Ingresso comune di scelta manuale e trascinamento dal Finder.
   func upload(_ urls: [URL]) async {
@@ -1205,29 +1266,41 @@ final class AppModel: ObservableObject {
       "Operazione file ancora in corso sulla box", comment: "File operation timeout")
   }
 
-  /// Copia un file dalla box in ~/Downloads del Mac.
+  /// Copia un file dalla box sul dispositivo: ~/Downloads su macOS, la
+  /// cartella temporanea su iOS (dove la view lo consegna a un share sheet).
   func downloadToMac(_ entry: FsEntry) async {
     guard !entry.isDirectory else { return }
     statusLine = appString("Scarico %@ sul Mac…", entry.name)
     do {
-      let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
+      #if canImport(AppKit)
+        let destinationDirectory = FileManager.default.urls(
+          for: .downloadsDirectory, in: .userDomainMask
+        )[0]
+      #else
+        let destinationDirectory = FileManager.default.temporaryDirectory
+      #endif
       let destination = try await client.downloadFile(
         pathB64: entry.path,
-        toDirectory: downloads,
+        toDirectory: destinationDirectory,
         suggestedName: entry.name
       )
       statusLine = nil
-      notify(title: appString("File copiato sul Mac"), body: destination.lastPathComponent)
+      #if canImport(AppKit)
+        notify(title: appString("File copiato sul Mac"), body: destination.lastPathComponent)
+      #else
+        downloadedFileForSharing = destination
+        emitFeedback(appString("File scaricato: scegli dove condividerlo"), style: .success)
+      #endif
     } catch {
       reportError(error)
     }
   }
 
-  /// Apre la condivisione SMB della box nel Finder.
+  /// Apre la condivisione SMB della box: Finder su macOS, app File su iOS.
   func openSMBShare() {
     let host = URL(string: ConfigStore.load().baseURL)?.host ?? "192.168.1.254"
     if let url = URL(string: "smb://\(host)") {
-      NSWorkspace.shared.open(url)
+      openExternalURL(url)
     }
   }
 
@@ -1237,9 +1310,15 @@ final class AppModel: ObservableObject {
     pairingInProgress = true
     statusLine = appString("Conferma la richiesta sulla iliadbox…")
     defer { pairingInProgress = false }
+    #if canImport(UIKit)
+      // La box selezionata prima di questa build può avere ancora la base
+      // https irraggiungibile su iOS: si rinegozia prima di chiedere
+      // l'autorizzazione, qualunque strada abbia prodotto il profilo.
+      await normalizeActiveProfileTransport()
+    #endif
     do {
-      let deviceName = Host.current().localizedName ?? "Mac"
-      let auth = try await client.requestAuthorization(deviceName: deviceName)
+      let name = deviceName
+      let auth = try await client.requestAuthorization(deviceName: name)
       try await client.waitForApproval(trackId: auth.trackId)
       var config = ConfigStore.load()
       config.appToken = auth.appToken
@@ -1256,44 +1335,47 @@ final class AppModel: ObservableObject {
 
   // MARK: Sistema
 
-  func registerAsMagnetHandler() {
-    NSWorkspace.shared.setDefaultApplication(
-      at: Bundle.main.bundleURL,
-      toOpenURLsWithScheme: "magnet"
-    ) { [weak self] error in
-      Task { @MainActor in
-        self?.statusLine =
-          error == nil
-          ? appString("IliadBar è ora l'app per i link magnet")
-          : appString("Registrazione handler fallita: %@", error!.localizedDescription)
+  /// Registro come handler degli schemi magnet: solo macOS, dove il sistema
+  /// ha un concetto di app predefinita per schema. Su iOS la registrazione
+  /// si dichiara nell'Info.plist dell'app.
+  #if canImport(AppKit)
+    func registerAsMagnetHandler() {
+      NSWorkspace.shared.setDefaultApplication(
+        at: Bundle.main.bundleURL,
+        toOpenURLsWithScheme: "magnet"
+      ) { [weak self] error in
+        Task { @MainActor in
+          self?.statusLine =
+            error == nil
+            ? appString("IliadBar è ora l'app per i link magnet")
+            : appString("Registrazione handler fallita: %@", error!.localizedDescription)
+        }
       }
     }
-  }
+  #endif
 
   func setLaunchAtLogin(_ enabled: Bool) {
-    guard Bundle.main.bundleIdentifier != nil else { return }
-    do {
-      if enabled {
-        try SMAppService.mainApp.register()
-      } else {
-        try SMAppService.mainApp.unregister()
+    #if canImport(AppKit)
+      guard Bundle.main.bundleIdentifier != nil else { return }
+      do {
+        if enabled {
+          try SMAppService.mainApp.register()
+        } else {
+          try SMAppService.mainApp.unregister()
+        }
+        launchAtLogin = enabled
+      } catch {
+        launchAtLogin = SMAppService.mainApp.status == .enabled
+        statusLine = appString("Avvio al login: %@", error.localizedDescription)
       }
-      launchAtLogin = enabled
-    } catch {
-      launchAtLogin = SMAppService.mainApp.status == .enabled
-      statusLine = appString("Avvio al login: %@", error.localizedDescription)
-    }
+    #endif
   }
 
-  func exportDiagnostics() async {
-    let panel = NSSavePanel()
-    panel.nameFieldStringValue =
-      "IliadBar-Diagnostics-\(Self.diagnosticDateFormatter.string(from: Date())).json"
-    panel.allowedContentTypes = [.json]
-    guard panel.runModal() == .OK, let destination = panel.url else { return }
+  /// Report diagnostico redatto: il corpo condiviso tra le due piattaforme.
+  private func makeDiagnosticsReport() async -> RedactedDiagnostics {
     let activeProfile = profiles.first { $0.id == activeProfileID }
     let permissions = await client.permissionSnapshot()
-    let report = RedactedDiagnostics(
+    return RedactedDiagnostics(
       app: .init(
         version: IliadBarBuildInfo.version,
         bundleID: Bundle.main.bundleIdentifier ?? "unbundled"
@@ -1319,13 +1401,41 @@ final class AppModel: ObservableObject {
       ),
       liveEvents: liveEventsConnected
     )
-    do {
-      try report.data().write(to: destination, options: .atomic)
-      statusLine = appString("Diagnostica esportata")
-    } catch {
-      statusLine = appString("Esportazione diagnostica: %@", error.localizedDescription)
-    }
   }
+
+  #if canImport(AppKit)
+    func exportDiagnostics() async {
+      let panel = NSSavePanel()
+      panel.nameFieldStringValue =
+        "IliadBar-Diagnostics-\(Self.diagnosticDateFormatter.string(from: Date())).json"
+      panel.allowedContentTypes = [.json]
+      guard panel.runModal() == .OK, let destination = panel.url else { return }
+      let report = await makeDiagnosticsReport()
+      do {
+        try report.data().write(to: destination, options: .atomic)
+        statusLine = appString("Diagnostica esportata")
+      } catch {
+        statusLine = appString("Esportazione diagnostica: %@", error.localizedDescription)
+      }
+    }
+  #else
+    /// Su iOS il file viene scritto in una cartella temporanea e consegnato
+    /// alla view, che lo offre attraverso lo share sheet.
+    @discardableResult
+    func exportDiagnostics() async -> URL? {
+      let report = await makeDiagnosticsReport()
+      let destination = FileManager.default.temporaryDirectory.appendingPathComponent(
+        "IliadBar-Diagnostics-\(Self.diagnosticDateFormatter.string(from: Date())).json")
+      do {
+        try report.data().write(to: destination, options: .atomic)
+        emitFeedback(appString("Diagnostica pronta"), style: .success)
+        return destination
+      } catch {
+        statusLine = appString("Esportazione diagnostica: %@", error.localizedDescription)
+        return nil
+      }
+    }
+  #endif
 
   private static let diagnosticDateFormatter: DateFormatter = {
     let formatter = DateFormatter()
@@ -1375,14 +1485,65 @@ final class AppModel: ObservableObject {
   }
 
   func useDiscoveredBox(_ box: DiscoveredBox) {
+    Task {
+      await adoptDiscoveredBox(box)
+    }
+  }
+
+  private func adoptDiscoveredBox(_ box: DiscoveredBox) async {
     do {
-      try ConfigStore.saveProfile(box.profile)
+      var profile = box.profile
+      #if canImport(UIKit)
+        // iOS: la chain HTTPS della box non raggiunge una root e URLSession
+        // la rifiuta (v. IliadboxEndpointProber). Si cerca l'endpoint HTTP
+        // vivo prima di salvare il profilo.
+        if profile.baseURL.hasPrefix("https"),
+          let baseURL = URL(string: profile.baseURL),
+          let reachable = await IliadboxEndpointProber.firstReachableHTTPBase(for: baseURL)
+        {
+          profile.baseURL = reachable.absoluteString
+        }
+      #endif
+      try ConfigStore.saveProfile(profile)
       reloadConfiguration()
       statusLine = appString("%@ trovata sulla rete locale", box.name)
     } catch {
       reportError(error)
     }
   }
+
+  #if canImport(UIKit)
+    /// Profili salvati prima della normalizzazione HTTP: l'endpoint viene
+    /// rinegoziato all'attivazione, così un pairing già iniziato su https si
+    /// sblocca senza rifare la configurazione.
+    private func normalizeActiveProfileTransport() async {
+      guard var profile = ConfigStore.loadAppConfig().activeBox,
+        profile.baseURL.hasPrefix("https"),
+        let baseURL = URL(string: profile.baseURL)
+      else {
+        #if DEBUG
+          NSLog("IbxProbe: profilo attivo già http o assente, niente da negoziare")
+        #endif
+        return
+      }
+      #if DEBUG
+        NSLog("IbxProbe: profilo https attivo (%@), cerco endpoint HTTP…", profile.baseURL)
+      #endif
+      guard let reachable = await IliadboxEndpointProber.firstReachableHTTPBase(for: baseURL)
+      else {
+        #if DEBUG
+          NSLog("IbxProbe: nessun endpoint HTTP raggiungibile")
+        #endif
+        return
+      }
+      #if DEBUG
+        NSLog("IbxProbe: endpoint vivo %@", reachable.absoluteString)
+      #endif
+      profile.baseURL = reachable.absoluteString
+      try? ConfigStore.saveProfile(profile)
+      reloadConfiguration()
+    }
+  #endif
 
   func addManualBox(name: String, baseURL: String) {
     guard IliadboxInputValidator.isSupportedAPIURL(baseURL), let url = URL(string: baseURL) else {
@@ -1582,6 +1743,10 @@ final class AppModel: ObservableObject {
 
   /// Errore di un'azione: statusLine per il pannello + banner per le finestre.
   private func reportError(_ error: Error) {
+    #if DEBUG
+      let ns = error as NSError
+      NSLog("IbxError: dominio %@ codice %d — %@", ns.domain, ns.code, ns.localizedDescription)
+    #endif
     reportError(error.localizedDescription)
   }
 

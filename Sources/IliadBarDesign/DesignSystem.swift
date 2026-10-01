@@ -1,5 +1,10 @@
-import AppKit
-import SwiftUI
+#if canImport(AppKit)
+  import AppKit
+  import SwiftUI
+#elseif canImport(UIKit)
+  import SwiftUI
+  import UIKit
+#endif
 
 /// Palette IliadBar: unica fonte per app e widget. Il rosso iliad è
 /// l'identità, i restanti sono colori semantici di stato e di misura.
@@ -21,13 +26,22 @@ public enum IliadPalette {
   private static func adaptive(
     light: (Double, Double, Double), dark: (Double, Double, Double), name: String
   ) -> Color {
-    Color(
-      nsColor: NSColor(name: NSColor.Name(name)) { appearance in
-        let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        let components = isDark ? dark : light
-        return NSColor(
-          srgbRed: components.0, green: components.1, blue: components.2, alpha: 1)
-      })
+    #if canImport(AppKit)
+      Color(
+        nsColor: NSColor(name: NSColor.Name(name)) { appearance in
+          let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+          let components = isDark ? dark : light
+          return NSColor(
+            srgbRed: components.0, green: components.1, blue: components.2, alpha: 1)
+        })
+    #elseif canImport(UIKit)
+      Color(
+        uiColor: UIColor { traits in
+          let components = traits.userInterfaceStyle == .dark ? dark : light
+          return UIColor(
+            red: components.0, green: components.1, blue: components.2, alpha: 1)
+        })
+    #endif
   }
 }
 

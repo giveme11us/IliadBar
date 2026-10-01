@@ -502,3 +502,12 @@
 "Traffico in tempo reale" = "Live traffic";
 
 "in stallo" = "stalled";
+
+/* iOS */
+"Cartella" = "Folder";
+"Copia sul dispositivo" = "Copy to device";
+"Diagnostica pronta" = "Diagnostics ready";
+"File scaricato: scegli dove condividerlo" = "File downloaded: choose how to share it";
+"Resta tutto sul tuo dispositivo" = "Everything stays on your device";
+"Rimuovi" = "Remove";
+"Scarica" = "Download";

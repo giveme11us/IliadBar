@@ -1,4 +1,10 @@
-import SwiftUI
+#if canImport(AppKit)
+  import AppKit
+  import SwiftUI
+#elseif canImport(UIKit)
+  import SwiftUI
+  import UIKit
+#endif
 
 /// Ritratto della iliadbox: un disco (16,1 cm di diametro per 4,5 di altezza)
 /// visto di tre quarti. È disegnato, non fotografato — resta nitido a ogni
@@ -108,12 +114,20 @@ public struct IliadboxMark: View {
   private static let bodyDark = adaptive(light: 0.74, dark: 0.42)
 
   private static func adaptive(light: Double, dark: Double) -> Color {
-    Color(
-      nsColor: NSColor(name: nil) { appearance in
-        let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        let value = isDark ? dark : light
-        return NSColor(srgbRed: value, green: value, blue: value * 0.995, alpha: 1)
-      })
+    #if canImport(AppKit)
+      Color(
+        nsColor: NSColor(name: nil) { appearance in
+          let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+          let value = isDark ? dark : light
+          return NSColor(srgbRed: value, green: value, blue: value * 0.995, alpha: 1)
+        })
+    #elseif canImport(UIKit)
+      Color(
+        uiColor: UIColor { traits in
+          let value = traits.userInterfaceStyle == .dark ? dark : light
+          return UIColor(red: value, green: value, blue: value * 0.995, alpha: 1)
+        })
+    #endif
   }
 }
 

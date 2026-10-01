@@ -1,0 +1,127 @@
+# Progetto iOS generato: `xcodegen` produce IliadBariOS.xcodeproj.
+# La app riusa i sorgenti del target SPM `IliadBar` (escluso il guscio macOS)
+# e il widget riusa `Sources/IliadBarWidget`. macOS continua a buildare via SPM.
+name: IliadBariOS
+
+options:
+  bundleIdPrefix: it.ivansposato
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ${DEVELOPMENT_TEAM}
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: 0.1.0
+
+packages:
+  iliadbar:
+    path: .
+
+targets:
+  IliadBariOS:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources/IliadBariOS
+      - path: Sources/IliadBar
+        excludes:
+          - "IliadBarApp.swift"
+          - "MainWindowView.swift"
+          - "PanelView.swift"
+          - "BoxView.swift"
+          - "FilesView.swift"
+      - path: Resources.iOS/Assets.xcassets
+      - path: Resources/Localization
+    dependencies:
+      - package: iliadbar
+        products:
+          - IliadboxKit
+          - IliadBarDesign
+      - target: IliadBarWidgets
+    info:
+      path: Sources/IliadBariOS/Support/Info.plist
+      properties:
+        CFBundleDisplayName: IliadBar
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        # Rete locale: permesso e servizio Bonjour della box.
+        NSLocalNetworkUsageDescription: >-
+          IliadBar cerca la iliadbox sulla rete locale per mostrarne stato,
+          download, file e controlli. Nessun dato lascia la tua rete.
+        NSBonjourServices:
+          - _fbx-api._tcp
+        # La box espone l'API in HTTP sulla LAN: gli IP locali passano con
+        # NSAllowsLocalNetworking; il nome DDNS della box (ibxos.it) è un
+        # dominio pubblico e serve un'eccezione mirata.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+          NSExceptionDomains:
+            ibxos.it:
+              NSExceptionAllowsInsecureHTTPLoads: true
+              NSIncludesSubdomains: true
+        # Schema dei link magnet e deep link dei widget (iliadbar://sezione).
+        CFBundleURLTypes:
+          - CFBundleURLName: it.ivansposato.iliadbar.magnet
+            CFBundleURLSchemes: [magnet]
+          - CFBundleURLName: it.ivansposato.iliadbar.deeplink
+            CFBundleURLSchemes: [iliadbar]
+        IliadBarAppGroup: group.it.ivansposato.iliadbar
+        ITSAppUsesNonExemptEncryption: false
+    entitlements:
+      path: Sources/IliadBariOS/Support/App.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.it.ivansposato.iliadbar
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: it.ivansposato.iliadbar.ios
+        TARGETED_DEVICE_FAMILY: "1,2"
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+
+  IliadBarWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Sources/IliadBarWidget
+      - path: Resources/Localization
+    dependencies:
+      - package: iliadbar
+        products:
+          - IliadboxKit
+          - IliadBarDesign
+    info:
+      path: Sources/IliadBariOS/Support/WidgetInfo.plist
+      properties:
+        CFBundleDisplayName: IliadBar
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: Sources/IliadBariOS/Support/Widget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.it.ivansposato.iliadbar
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: it.ivansposato.iliadbar.ios.widgets
+
+schemes:
+  IliadBariOS:
+    build:
+      targets:
+        IliadBariOS: all
+    run:
+      config: Debug
+    archive:
+      config: Release

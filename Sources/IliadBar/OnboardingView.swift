@@ -1,7 +1,13 @@
-import AppKit
 import IliadBarDesign
 import IliadboxKit
 import SwiftUI
+
+#if canImport(AppKit)
+  import AppKit
+#endif
+#if canImport(UIKit)
+  import UIKit
+#endif
 
 /// Configurazione iniziale: occupa la finestra intera perché è il momento in
 /// cui si insegna che la finestra esiste (PRD-ONBOARDING §2).
@@ -95,7 +101,7 @@ struct OnboardingView: View {
         .tint(IliadPalette.red)
         .keyboardShortcut(.defaultAction)
       } else {
-        Button(model.pairingInProgress ? "In attesa…" : "Associa questo Mac") {
+        Button(model.pairingInProgress ? "In attesa…" : pairActionTitle) {
           pairingFailed = nil
           Task {
             await model.pair()
@@ -145,27 +151,28 @@ struct OnboardingView: View {
   private var welcome: some View {
     VStack(alignment: .leading, spacing: 18) {
       HStack(alignment: .bottom, spacing: 18) {
-        Image(nsImage: NSApp.applicationIconImage)
-          .resizable()
+        AppIconImage()
           .frame(width: 76, height: 76)
+          .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         IliadboxMark(state: .online)
           .frame(width: 132)
       }
       Text("Benvenuto in IliadBar")
         .font(.system(size: 26, weight: .semibold))
-      Text("La tua iliadbox nella barra dei menu: stato della linea, download, file e rete.")
+      Text(platformWelcomeCopy)
         .font(.title3)
         .foregroundStyle(.secondary)
         .fixedSize(horizontal: false, vertical: true)
       VStack(alignment: .leading, spacing: 12) {
         promise(
-          icon: "lock.laptopcomputer", title: "Resta tutto sul tuo Mac",
+          icon: "lock.laptopcomputer", title: "Resta tutto sul tuo dispositivo",
           detail:
             "IliadBar parla direttamente con la box. Nessun servizio in mezzo, nessuna telemetria."
         )
         promise(
           icon: "bolt.horizontal", title: "Nativa e immediata",
-          detail: "Swift e SwiftUI, nessuna dipendenza: si apre dalla barra dei menu quando serve.")
+          detail: "Swift e SwiftUI, nessuna dipendenza: si apre quando serve."
+        )
         promise(
           icon: "slider.horizontal.3", title: "Completa",
           detail:
@@ -275,7 +282,7 @@ struct OnboardingView: View {
 
       VStack(alignment: .leading, spacing: 14) {
         instruction(
-          number: 1, text: "Premi «Associa questo Mac» qui sotto.")
+          number: 1, text: "Premi «\(pairActionTitleRaw)» qui sotto.")
         instruction(
           number: 2, text: "Vai alla iliadbox: sul display comparirà la richiesta di IliadBar.")
         instruction(
@@ -371,40 +378,46 @@ struct OnboardingView: View {
       Label("Tutto pronto", systemImage: "checkmark.seal.fill")
         .font(.system(size: 24, weight: .semibold))
         .foregroundStyle(IliadTint.online)
-      Text("IliadBar vive nella barra dei menu: l'icona in alto apre il pannello.")
+      Text(doneCopy)
         .font(.title3)
         .foregroundStyle(.secondary)
         .fixedSize(horizontal: false, vertical: true)
 
       VStack(alignment: .leading, spacing: 14) {
-        discoveryTip(
-          icon: "link.badge.plus", title: "Link magnet",
-          detail: "Apri i magnet direttamente sulla box invece che in un client sul Mac."
-        ) {
-          Button("Usa IliadBar per i magnet") { model.registerAsMagnetHandler() }
-        }
+        #if canImport(AppKit)
+          discoveryTip(
+            icon: "link.badge.plus", title: "Link magnet",
+            detail: "Apri i magnet direttamente sulla box invece che in un client sul Mac."
+          ) {
+            Button("Usa IliadBar per i magnet") { model.registerAsMagnetHandler() }
+          }
+        #endif
         discoveryTip(
           icon: "square.grid.2x2", title: "Widget",
-          detail: "Connessione e download nel Centro Notifiche, senza aprire l'app."
+          detail: "Connessione e download, senza aprire l'app."
         ) {
           EmptyView()
         }
-        discoveryTip(
-          icon: "terminal", title: "Riga di comando",
-          detail: "Il comando ibx espone stato, download e file in JSON per le automazioni."
-        ) {
-          Button("Copia il comando di installazione") { model.copyCLIInstallCommand() }
-        }
+        #if canImport(AppKit)
+          discoveryTip(
+            icon: "terminal", title: "Riga di comando",
+            detail: "Il comando ibx espone stato, download e file in JSON per le automazioni."
+          ) {
+            Button("Copia il comando di installazione") { model.copyCLIInstallCommand() }
+          }
+        #endif
       }
 
-      Toggle(
-        "Avvia IliadBar al login",
-        isOn: Binding(
-          get: { model.launchAtLogin },
-          set: { model.setLaunchAtLogin($0) }
+      #if canImport(AppKit)
+        Toggle(
+          "Avvia IliadBar al login",
+          isOn: Binding(
+            get: { model.launchAtLogin },
+            set: { model.setLaunchAtLogin($0) }
+          )
         )
-      )
-      .padding(.top, 4)
+        .padding(.top, 4)
+      #endif
     }
   }
 
@@ -435,6 +448,55 @@ struct OnboardingView: View {
         .foregroundStyle(.secondary)
         .fixedSize(horizontal: false, vertical: true)
     }
+  }
+
+  private var platformWelcomeCopy: LocalizedStringKey {
+    #if canImport(UIKit)
+      "La tua iliadbox in tasca: stato della linea, download, file e rete."
+    #else
+      "La tua iliadbox nella barra dei menu: stato della linea, download, file e rete."
+    #endif
+  }
+
+  private var pairActionTitle: LocalizedStringKey {
+    #if canImport(UIKit)
+      "Associa questo dispositivo"
+    #else
+      "Associa questo Mac"
+    #endif
+  }
+
+  /// Variante non localizzata per interpolazioni dentro altre stringhe.
+  private var pairActionTitleRaw: String {
+    #if canImport(UIKit)
+      NSLocalizedString("Associa questo dispositivo", comment: "Pairing")
+    #else
+      NSLocalizedString("Associa questo Mac", comment: "Pairing")
+    #endif
+  }
+
+  private var doneCopy: LocalizedStringKey {
+    #if canImport(UIKit)
+      "IliadBar è pronta: la home mostra lo stato della linea a colpo d'occhio."
+    #else
+      "IliadBar vive nella barra dei menu: l'icona in alto apre il pannello."
+    #endif
+  }
+}
+
+/// Icona dell'app: AppKit su macOS, asset catalogo su iOS. Si comporta come
+/// un'immagine ridimensionabile per poter essere incorniciata dal chiamante.
+struct AppIconImage: View {
+  var body: some View {
+    #if canImport(AppKit)
+      Image(nsImage: NSApp.applicationIconImage).resizable()
+    #elseif canImport(UIKit)
+      if let icon = UIImage(named: "AppIcon") {
+        Image(uiImage: icon).resizable()
+      } else {
+        IliadboxMark(state: .online)
+      }
+    #endif
   }
 }
 
