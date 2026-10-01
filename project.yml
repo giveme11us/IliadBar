@@ -60,9 +60,15 @@ targets:
           download, file e controlli. Nessun dato lascia la tua rete.
         NSBonjourServices:
           - _fbx-api._tcp
-        # La box espone l'API in HTTP sulla LAN.
+        # La box espone l'API in HTTP sulla LAN: gli IP locali passano con
+        # NSAllowsLocalNetworking; il nome DDNS della box (ibxos.it) è un
+        # dominio pubblico e serve un'eccezione mirata.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+          NSExceptionDomains:
+            ibxos.it:
+              NSExceptionAllowsInsecureHTTPLoads: true
+              NSIncludesSubdomains: true
         # Schema dei link magnet e deep link dei widget (iliadbar://sezione).
         CFBundleURLTypes:
           - CFBundleURLName: it.ivansposato.iliadbar.magnet

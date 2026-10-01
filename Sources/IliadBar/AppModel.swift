@@ -286,6 +286,9 @@ final class AppModel: ObservableObject {
   func activateSavedCredential() async {
     guard !credentialActivationInProgress else { return }
     credentialActivationInProgress = true
+    #if canImport(UIKit)
+      await normalizeActiveProfileTransport()
+    #endif
     defer { credentialActivationInProgress = false }
     let appConfig = ConfigStore.loadAppConfig()
     guard let profile = appConfig.activeBox else {
@@ -1307,6 +1310,12 @@ final class AppModel: ObservableObject {
     pairingInProgress = true
     statusLine = appString("Conferma la richiesta sulla iliadbox…")
     defer { pairingInProgress = false }
+    #if canImport(UIKit)
+      // La box selezionata prima di questa build può avere ancora la base
+      // https irraggiungibile su iOS: si rinegozia prima di chiedere
+      // l'autorizzazione, qualunque strada abbia prodotto il profilo.
+      await normalizeActiveProfileTransport()
+    #endif
     do {
       let name = deviceName
       let auth = try await client.requestAuthorization(deviceName: name)
@@ -1476,14 +1485,65 @@ final class AppModel: ObservableObject {
   }
 
   func useDiscoveredBox(_ box: DiscoveredBox) {
+    Task {
+      await adoptDiscoveredBox(box)
+    }
+  }
+
+  private func adoptDiscoveredBox(_ box: DiscoveredBox) async {
     do {
-      try ConfigStore.saveProfile(box.profile)
+      var profile = box.profile
+      #if canImport(UIKit)
+        // iOS: la chain HTTPS della box non raggiunge una root e URLSession
+        // la rifiuta (v. IliadboxEndpointProber). Si cerca l'endpoint HTTP
+        // vivo prima di salvare il profilo.
+        if profile.baseURL.hasPrefix("https"),
+          let baseURL = URL(string: profile.baseURL),
+          let reachable = await IliadboxEndpointProber.firstReachableHTTPBase(for: baseURL)
+        {
+          profile.baseURL = reachable.absoluteString
+        }
+      #endif
+      try ConfigStore.saveProfile(profile)
       reloadConfiguration()
       statusLine = appString("%@ trovata sulla rete locale", box.name)
     } catch {
       reportError(error)
     }
   }
+
+  #if canImport(UIKit)
+    /// Profili salvati prima della normalizzazione HTTP: l'endpoint viene
+    /// rinegoziato all'attivazione, così un pairing già iniziato su https si
+    /// sblocca senza rifare la configurazione.
+    private func normalizeActiveProfileTransport() async {
+      guard var profile = ConfigStore.loadAppConfig().activeBox,
+        profile.baseURL.hasPrefix("https"),
+        let baseURL = URL(string: profile.baseURL)
+      else {
+        #if DEBUG
+          NSLog("IbxProbe: profilo attivo già http o assente, niente da negoziare")
+        #endif
+        return
+      }
+      #if DEBUG
+        NSLog("IbxProbe: profilo https attivo (%@), cerco endpoint HTTP…", profile.baseURL)
+      #endif
+      guard let reachable = await IliadboxEndpointProber.firstReachableHTTPBase(for: baseURL)
+      else {
+        #if DEBUG
+          NSLog("IbxProbe: nessun endpoint HTTP raggiungibile")
+        #endif
+        return
+      }
+      #if DEBUG
+        NSLog("IbxProbe: endpoint vivo %@", reachable.absoluteString)
+      #endif
+      profile.baseURL = reachable.absoluteString
+      try? ConfigStore.saveProfile(profile)
+      reloadConfiguration()
+    }
+  #endif
 
   func addManualBox(name: String, baseURL: String) {
     guard IliadboxInputValidator.isSupportedAPIURL(baseURL), let url = URL(string: baseURL) else {
@@ -1683,6 +1743,10 @@ final class AppModel: ObservableObject {
 
   /// Errore di un'azione: statusLine per il pannello + banner per le finestre.
   private func reportError(_ error: Error) {
+    #if DEBUG
+      let ns = error as NSError
+      NSLog("IbxError: dominio %@ codice %d — %@", ns.domain, ns.code, ns.localizedDescription)
+    #endif
     reportError(error.localizedDescription)
   }
 

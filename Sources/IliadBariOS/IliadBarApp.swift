@@ -19,6 +19,7 @@ struct IliadBarApp: App {
         }
       }
       .transientFeedback(model)
+      .task { await model.activateSavedCredential() }
       .onOpenURL { url in
         handle(url: url)
       }

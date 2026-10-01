@@ -282,7 +282,7 @@ struct OnboardingView: View {
 
       VStack(alignment: .leading, spacing: 14) {
         instruction(
-          number: 1, text: "Premi «Associa questo Mac» qui sotto.")
+          number: 1, text: "Premi «\(pairActionTitleRaw)» qui sotto.")
         instruction(
           number: 2, text: "Vai alla iliadbox: sul display comparirà la richiesta di IliadBar.")
         instruction(
@@ -463,6 +463,15 @@ struct OnboardingView: View {
       "Associa questo dispositivo"
     #else
       "Associa questo Mac"
+    #endif
+  }
+
+  /// Variante non localizzata per interpolazioni dentro altre stringhe.
+  private var pairActionTitleRaw: String {
+    #if canImport(UIKit)
+      NSLocalizedString("Associa questo dispositivo", comment: "Pairing")
+    #else
+      NSLocalizedString("Associa questo Mac", comment: "Pairing")
     #endif
   }
 
